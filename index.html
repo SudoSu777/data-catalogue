@@ -69,7 +69,7 @@ const CONFIG = {
 body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; margin: 0; }
 
 /* ── Layout ── */
-#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-height: 500px; }
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-height: 600px; }
 
 /* ── Header ── */
 #header {
@@ -108,7 +108,7 @@ body { font-family: var(--font); background: var(--bg3); color: var(--text); min
 .chip-rel.active { background: var(--purple-light); color: var(--purple); border-color: var(--purple); }
 
 /* ── Graph ── */
-#graph-wrap { flex: 1; position: relative; overflow: hidden; min-height: 300px; }
+#graph-wrap { flex: 1; position: relative; overflow: hidden; }
 #canvas { display: block; width: 100%; height: 100%; cursor: default; }
 #tooltip {
   position: absolute; pointer-events: none; display: none; z-index: 10;
@@ -290,7 +290,7 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
   </div>
 
   <div id="main">
-    <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+    <div style="display:flex;flex:1;overflow:hidden">
 
         <!-- Graph -->
         <div id="graph-wrap">
@@ -495,7 +495,62 @@ const DEMO_HISTORY = [
 // ══════════════════════════════════════════════════════════════
 //  SHAREPOINT API
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  BRIDGE postMessage — communication iframe ↔ page hôte SP
+// ══════════════════════════════════════════════════════════════
+let _pendingRequests = {};
+let _bridgeReady = false;
+let _bridgeQueue = [];
+let _msgId = 0;
+
+function isBridgeMode() {
+  try { return window.self !== window.top; } catch(e) { return true; }
+}
+
+// Envoyer une requête à la page hôte et attendre la réponse
+function bridgeCall(action, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++_msgId;
+    const timeout = setTimeout(() => {
+      delete _pendingRequests[id];
+      reject(new Error('BRIDGE_TIMEOUT:' + action));
+    }, 15000);
+    _pendingRequests[id] = { resolve, reject, timeout };
+    const msg = { type: 'SP_REQUEST', id, action, payload };
+    if (_bridgeReady) {
+      window.parent.postMessage(msg, 'https://cicnps.sharepoint.com');
+    } else {
+      _bridgeQueue.push(msg);
+    }
+  });
+}
+
+// Recevoir les réponses de la page hôte
+window.addEventListener('message', e => {
+  if (!e.origin.includes('sharepoint.com') && !e.origin.includes('github.io')) return;
+  const d = e.data;
+  if (d.type === 'SP_READY') {
+    _bridgeReady = true;
+    _bridgeQueue.forEach(m => window.parent.postMessage(m, 'https://cicnps.sharepoint.com'));
+    _bridgeQueue = [];
+    return;
+  }
+  if (d.type === 'SP_USER') {
+    window._spUser = d.user;
+    return;
+  }
+  if (d.type === 'SP_RESPONSE' && _pendingRequests[d.id]) {
+    const req = _pendingRequests[d.id];
+    clearTimeout(req.timeout);
+    delete _pendingRequests[d.id];
+    if (d.error) req.reject(new Error(d.error));
+    else req.resolve(d.result);
+  }
+});
+
+// API SP via bridge (iframe) ou directe (même domaine)
 async function spGet(list) {
+  if (isBridgeMode()) return bridgeCall('GET', { list });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=500`;
   const r = await fetch(url, { headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() } });
   if (r.status === 404) throw new Error(`LIST_NOT_FOUND:${list}`);
@@ -505,6 +560,7 @@ async function spGet(list) {
   return d.d.results;
 }
 async function spPost(list, body) {
+  if (isBridgeMode()) return bridgeCall('POST', { list, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`;
   const r = await fetch(url, {
     method: 'POST',
@@ -515,6 +571,7 @@ async function spPost(list, body) {
   return (await r.json()).d;
 }
 async function spPatch(list, id, body) {
+  if (isBridgeMode()) return bridgeCall('PATCH', { list, id, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, {
     method: 'POST',
@@ -523,6 +580,7 @@ async function spPatch(list, id, body) {
   });
 }
 async function spDelete(list, id) {
+  if (isBridgeMode()) return bridgeCall('DELETE', { list, id });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*' } });
 }
@@ -536,6 +594,19 @@ async function getDigest() {
   return _digest;
 }
 async function getCurrentUser() {
+  if (isBridgeMode()) {
+    // Attendre que la page hôte envoie l'utilisateur
+    return new Promise((resolve, reject) => {
+      if (window._spUser) { resolve(window._spUser); return; }
+      const t = setTimeout(() => reject(new Error('USER_TIMEOUT')), 10000);
+      const check = setInterval(() => {
+        if (window._spUser) {
+          clearInterval(check); clearTimeout(t);
+          resolve(window._spUser);
+        }
+      }, 100);
+    });
+  }
   const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/web/currentuser`, { headers: { Accept: 'application/json;odata=verbose' } });
   const d = await r.json();
   return d.d;
@@ -585,12 +656,7 @@ async function init() {
     } else if (!isOnSP || errMsg.includes('Failed to fetch') || !STATE.currentUser) {
       // Pas sur SP ou non joignable → mode démo
       document.getElementById('user-name').textContent = 'Mode démo';
-      // Remap demo table domains to configured domains
-      const demoDomains = ['Finance','RH','Clients','Référentiel'];
-      STATE.tables = DEMO_TABLES.map((t, i) => ({
-        ...t,
-        Domain: CONFIG.DOMAINS[demoDomains.indexOf(t.Domain) % CONFIG.DOMAINS.length] || t.Domain
-      }));
+      STATE.tables = DEMO_TABLES;
       STATE.columns = DEMO_COLUMNS;
       STATE.history = DEMO_HISTORY;
       showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
@@ -706,16 +772,10 @@ function initGraph() {
   // If not rendered yet, retry after a frame
   let wH = wrap.clientHeight;
   let wW = wrap.clientWidth;
-  if (!window._graphRetry) window._graphRetry = 0;
-  if ((wH < 10 || wW < 10) && window._graphRetry < 20) {
-    window._graphRetry++;
-    setTimeout(initGraph, 100);
+  if (wH < 10 || wW < 10) {
+    setTimeout(initGraph, 80);
     return;
   }
-  window._graphRetry = 0;
-  // Fallback minimum dimensions if still zero
-  if (wH < 10) wH = Math.max(window.innerHeight - 150, 300);
-  if (wW < 10) wW = Math.max(window.innerWidth - 320, 400);
   canvas.width = wW * devicePixelRatio;
   canvas.height = wH * devicePixelRatio;
   canvas.style.width = wW + 'px';
@@ -821,7 +881,7 @@ function drawGraph(W, H) {
 
 function buildLegend() {
   const leg = document.getElementById('legend');
-  const domains = [...new Set(STATE.tables.map(t => t.Domain || t.Domaine))];
+  const domains = [...new Set(STATE.tables.map(t => t.Domaine))];
   leg.innerHTML = domains.map(d => `<div class="leg-row"><span class="leg-dot" style="background:${DOMAIN_COLORS[d]||'#888'}"></span>${d}</div>`).join('');
 }
 
@@ -969,9 +1029,9 @@ function renderPanel(node) {
     <div class="sec-label">Tables liées (${related.length})</div>
     <div>${related.map(({t,key})=>`
       <div class="link-item" onclick="selectTable('${t.id}')">
-        <span style="width:8px;height:8px;border-radius:50%;background:${DOMAIN_COLORS[t.Domain||t.Domaine]||'#888'};flex-shrink:0"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:${DOMAIN_COLORS[t.Domaine]||'#888'};flex-shrink:0"></span>
         <span style="font-size:12px">${t.Title}</span>
-        <span style="font-size:11px;color:var(--text2)">${t.Domain||t.Domaine}</span>
+        <span style="font-size:11px;color:var(--text2)">${t.Domaine}</span>
         <span class="link-key">${key}</span>
       </div>`).join('')}
     </div>` : ''}
@@ -1041,7 +1101,7 @@ function openEditModal(id) {
   document.getElementById('f-name').value = t.Title;
   document.getElementById('f-desc').value = t.Description || '';
   document.getElementById('f-desc-long').value = t.DescriptionLongue || '';
-  document.getElementById('f-domain').value = t.Domain || t.Domaine;
+  document.getElementById('f-domain').value = t.Domaine;
   document.getElementById('f-rel').value = t.Fiabilite;
   document.getElementById('f-owner').value = t.Proprietaire || '';
   document.getElementById('f-freq').value = t.Frequence || '';
