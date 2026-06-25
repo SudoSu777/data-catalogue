@@ -20,31 +20,20 @@ IdTable,NomColonne,TypeDonnee,TypeCle,Description
 3,MONTANT_PATRONAL,DECIMAL,,Part patronale de la cotisation en euros
 3,MONTANT_SALARIAL,DECIMAL,,Part salariale de la cotisation en euros
 3,TAUX_APPLIQUE,DECIMAL,,Taux de cotisation appliqué en pourcentage
-4,DATE_ID,INT,PK,Clé de date au format YYYYMMDD
-4,DATE_COMPLETE,DATE,,Date complète au format ISO 8601
-4,MOIS,INT,,Numéro de mois (1-12)
-4,TRIMESTRE,INT,,Numéro de trimestre fiscal (1-4)
-4,ANNEE,INT,,Année civile
-4,SEMAINE,INT,,Numéro de semaine ISO
-5,ID_RECOUVREMENT,INT,PK,Identifiant unique de l'action de recouvrement
-5,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
-5,DATE_ID,INT,FK,Référence vers DIM_DATE
-5,MONTANT_DU,DECIMAL,,Montant de la créance initiale en euros
-5,MONTANT_RECOUVRE,DECIMAL,,Montant effectivement recouvré en euros
-5,STATUT,VARCHAR,,Statut du recouvrement (En cours/Soldé/Contentieux)
-6,EMPLOYEUR_ID,INT,PK,Identifiant unique de l'employeur
-6,SIRET,VARCHAR,,Numéro SIRET de l'établissement
-6,RAISON_SOCIALE,NVARCHAR,,Dénomination officielle de l'entreprise
-6,SECTEUR,VARCHAR,,Code NAF / secteur d'activité
-6,EFFECTIF,INT,,Nombre de salariés déclarés
-7,ID_SALARIE,INT,PK,Identifiant unique de la ligne salariale
-7,ASSURE_ID,INT,FK,Référence vers DIM_ASSURE
-7,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
-7,DATE_ID,INT,FK,Référence vers DIM_DATE
-7,SALAIRE_BRUT,DECIMAL,,Salaire brut mensuel déclaré en euros
-7,SALAIRE_PLAFONNE,DECIMAL,,Salaire plafonné pour calcul cotisations
-8,MOIS_ID,INT,FK,Référence vers DIM_DATE (premier jour du mois)
-8,TYPE_PRESTATION,VARCHAR,,Type de prestation agrégé
-8,NB_BENEFICIAIRES,INT,,Nombre de bénéficiaires distincts
-8,MONTANT_TOTAL,DECIMAL,,Montant total versé sur le mois en euros
-8,DUREE_MOYENNE,DECIMAL,,Durée moyenne des prestations en jours
+4,ID_RECOUVREMENT,INT,PK,Identifiant unique de l'action de recouvrement
+4,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
+4,DATE_ID,INT,FK,Référence vers DIM_DATE
+4,MONTANT_DU,DECIMAL,,Montant de la créance initiale en euros
+4,MONTANT_RECOUVRE,DECIMAL,,Montant effectivement recouvré en euros
+4,STATUT,VARCHAR,,Statut du recouvrement (En cours/Soldé/Contentieux)
+5,EMPLOYEUR_ID,INT,PK,Identifiant unique de l'employeur
+5,SIRET,VARCHAR,,Numéro SIRET de l'établissement
+5,RAISON_SOCIALE,NVARCHAR,,Dénomination officielle de l'entreprise
+5,SECTEUR,VARCHAR,,Code NAF / secteur d'activité
+5,EFFECTIF,INT,,Nombre de salariés déclarés
+6,ID_SALARIE,INT,PK,Identifiant unique de la ligne salariale
+6,ASSURE_ID,INT,FK,Référence vers DIM_ASSURE
+6,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
+6,DATE_ID,INT,FK,Référence vers DIM_DATE
+6,SALAIRE_BRUT,DECIMAL,,Salaire brut mensuel déclaré en euros
+6,SALAIRE_PLAFONNE,DECIMAL,,Salaire plafonné pour calcul cotisations
