@@ -423,10 +423,15 @@ let STATE = {
   sharepointMode: false   // passe à true si la connexion SP réussit
 };
 
-const DOMAIN_COLORS = {
-  Finance: '#534AB7', RH: '#1D9E75', Clients: '#D85A30',
-  Référentiel: '#378ADD', Risques: '#D4537E', IT: '#BA7517'
-};
+// Palette de couleurs — s'adapte automatiquement aux domaines du CONFIG
+const COLOR_PALETTE = [
+  '#534AB7','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517',
+  '#7B5EA7','#2E8B8B','#C44D38','#4A7AB5','#A0522D','#6B8E23'
+];
+const DOMAIN_COLORS = {};
+CONFIG.DOMAINS.forEach((d, i) => {
+  DOMAIN_COLORS[d] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+});
 const REL_CONFIG = {
   Certifiée:        { cls: 'pill-green', dot: '●', label: '✓ Certifiée' },
   'En validation':  { cls: 'pill-amber', dot: '◑', label: '◑ En validation' },
@@ -684,12 +689,13 @@ async function init() {
     }
   }
 
+  loadPersistedUsage();
   hideLoader();
   // Small delay to ensure DOM is rendered before canvas sizing
   setTimeout(() => {
     initGraph();
-    // If SP connected but no tables yet, show a helpful message
-    if (STATE.sharepointMode && STATE.tables.length === 0) {
+    // If connected but no tables yet, show a helpful message
+    if (STATE.tables.length === 0) {
       showEmptyState();
     }
   }, 50);
@@ -843,6 +849,59 @@ function buildLinks() {
   return links;
 }
 
+// ══════════════════════════════════════════════════════════════
+//  COMPTEUR D'USAGE PERSISTANT (localStorage — une fois par jour)
+// ══════════════════════════════════════════════════════════════
+const USAGE_KEY = 'dc_usage_counts';
+const USAGE_DATE_KEY = 'dc_usage_dates';
+
+function loadPersistedUsage() {
+  try {
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    // Appliquer les compteurs persistés aux tables
+    STATE.tables.forEach(t => {
+      if (counts[t.id] !== undefined) {
+        t.Usage = Math.max(t.Usage || 0, counts[t.id]);
+        const gn = gNodes && gNodes.find(n => n.id === t.id);
+        if (gn) gn.Usage = t.Usage;
+      }
+    });
+  } catch(e) {}
+}
+
+function incrementUsage(node) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const dates = JSON.parse(localStorage.getItem(USAGE_DATE_KEY) || '{}');
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+
+    // Vérifier si déjà consulté aujourd'hui
+    if (dates[node.id] === today) {
+      // Déjà compté aujourd'hui — juste sélectionner sans incrémenter
+      return;
+    }
+
+    // Incrémenter
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+
+    // Persister
+    dates[node.id] = today;
+    counts[node.id] = node.Usage;
+    localStorage.setItem(USAGE_DATE_KEY, JSON.stringify(dates));
+    localStorage.setItem(USAGE_KEY, JSON.stringify(counts));
+
+    // Sync SharePoint si connecté
+    if (STATE.sharepointMode) {
+      spPatch(CONFIG.LIST_TABLES, node.id, { NombreUsages: node.Usage }).catch(() => {});
+    }
+  } catch(e) {
+    // localStorage indisponible — incrémenter en mémoire seulement
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+  }
+}
+
 function initGraph() {
   const canvas = document.getElementById('canvas');
   const wrap = document.getElementById('graph-wrap');
@@ -991,9 +1050,8 @@ function setupCanvasEvents(canvas, W, H) {
     const [mx, my] = toWorld(e, canvas);
     const n = hitTest(mx, my);
     if (n && visible(n)) {
-      n.Usage = Math.min((n.Usage||0)+1, 99);
-      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
-      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      // Incrémenter seulement une fois par jour par table
+      incrementUsage(n);
       STATE.selectedId = n.id;
       renderPanel(n);
     }
@@ -1122,8 +1180,8 @@ function renderPanel(node) {
     <div class="action-row">
       ${node.Sharepoint ? `<button class="btn btn-primary" onclick="window.open('${node.Sharepoint}','_blank')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        SharePoint
-      </button>` : ''}
+        Accès SharePoint
+      </button>` : '<span style="font-size:11px;color:var(--text3);padding:4px 0">Aucun lien SharePoint renseigné</span>'}
       <button class="btn" onclick="exportTable('${node.id}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exporter JSON

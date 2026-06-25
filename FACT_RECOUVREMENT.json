@@ -1,0 +1,72 @@
+{
+  "table": {
+    "id": "5",
+    "Title": "FACT_RECOUVREMENT",
+    "Domain": "Recouvrement",
+    "Description": "Suivi des créances et recouvrements",
+    "DescriptionLong": "Données de recouvrement des cotisations impayées par employeur et période.",
+    "Reliability": "En validation",
+    "Owner": "Équipe Recouvrement",
+    "Frequency": "Mensuelle",
+    "Source": "Système Recouvrement",
+    "Sharepoint": "",
+    "Usage": 20
+  },
+  "columns": [
+    {
+      "id": "28",
+      "TableId": "5",
+      "ColumnName": "ID_RECOUVREMENT",
+      "DataType": "INT",
+      "KeyType": "PK",
+      "Description": "Identifiant unique de l'action de recouvrement"
+    },
+    {
+      "id": "29",
+      "TableId": "5",
+      "ColumnName": "EMPLOYEUR_ID",
+      "DataType": "INT",
+      "KeyType": "FK",
+      "Description": "Référence vers DIM_EMPLOYEUR"
+    },
+    {
+      "id": "30",
+      "TableId": "5",
+      "ColumnName": "DATE_ID",
+      "DataType": "INT",
+      "KeyType": "FK",
+      "Description": "Référence vers DIM_DATE"
+    },
+    {
+      "id": "31",
+      "TableId": "5",
+      "ColumnName": "MONTANT_DU",
+      "DataType": "DECIMAL",
+      "KeyType": "",
+      "Description": "Montant de la créance initiale en euros"
+    },
+    {
+      "id": "32",
+      "TableId": "5",
+      "ColumnName": "MONTANT_RECOUVRE",
+      "DataType": "DECIMAL",
+      "KeyType": "",
+      "Description": "Montant effectivement recouvré en euros"
+    },
+    {
+      "id": "33",
+      "TableId": "5",
+      "ColumnName": "STATUT",
+      "DataType": "VARCHAR",
+      "KeyType": "",
+      "Description": "Statut du recouvrement (En cours/Soldé/Contentieux)"
+    }
+  ],
+  "history": [
+    {
+      "TableId": "5",
+      "Date": "2024-05-01",
+      "Note": "Intégration des cas en contentieux"
+    }
+  ]
+}
