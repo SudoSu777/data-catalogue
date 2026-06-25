@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Catalogue — Graphe Interactif</title>
+
+<!-- ============================================================
+     CONFIGURATION — À MODIFIER AVANT DÉPLOIEMENT
+     ============================================================ -->
+<script>
+const CONFIG = {
+  // URL de base de votre site SharePoint
+  // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
+  SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
+
+  // Nom exact de la Liste SharePoint qui stocke les tables du catalogue
+  LIST_TABLES: "CatalogueTables",
+
+  // Nom exact de la Liste SharePoint qui stocke les colonnes de chaque table
+  LIST_COLUMNS: "CatalogueColonnes",
+
+  // Nom exact de la Liste SharePoint qui stocke l'historique des modifications
+  LIST_HISTORY: "CatalogueHistorique",
+
+  // Emails des administrateurs du catalogue (accès complet : ajout / modification / suppression)
+  // Les autres utilisateurs sont en lecture seule
+  ADMIN_EMAILS: [
+    "k.nguessan@cnps.ci"//,
+    //"admin2@votre-entreprise.com"
+  ],
+
+  // Domaines métier disponibles (modifiable)
+  DOMAINS: ["Prestation", "Recouvrement", "Salariés", "Cotisations"],
+
+  // Niveaux de fiabilité disponibles
+  RELIABILITY_LEVELS: ["Certifiée", "En validation", "Non vérifiée"],
+
+  // Types de variables disponibles pour les colonnes
+  COLUMN_TYPES: ["INT", "BIGINT", "VARCHAR", "NVARCHAR", "DECIMAL", "FLOAT", "DATE", "DATETIME", "BOOL", "TEXT", "GUID", "JSON"]
+};
+</script>
+
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eceae3;
+  --text: #2c2c2a; --text2: #6b6a65; --text3: #9b9a94;
+  --border: rgba(44,44,42,0.12); --border2: rgba(44,44,42,0.22);
+  --purple: #534AB7; --purple-light: #EEEDFE; --purple-dark: #3C3489;
+  --green: #1D9E75; --green-light: #EAF3DE; --green-dark: #3B6D11;
+  --amber: #BA7517; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+  --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+  --coral: #D85A30; --blue: #378ADD; --teal: #1D9E75;
+  --r-md: 8px; --r-lg: 12px;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1c; --bg2: #28281f; --bg3: #323228;
+    --text: #e8e6dc; --text2: #a8a69c; --text3: #6b6a65;
+    --border: rgba(232,230,220,0.1); --border2: rgba(232,230,220,0.2);
+    --purple-light: #26215C; --green-light: #04342C; --amber-light: #412402; --red-light: #501313;
+    --green-dark: #9FE1CB; --amber-dark: #FAC775; --red-dark: #F7C1C1; --purple-dark: #CECBF6;
+  }
+}
+body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; margin: 0; }
+
+/* ── Layout ── */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-height: 500px; }
+
+/* ── Header ── */
+#header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--bg);
+  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+}
+#header h1 { font-size: 15px; font-weight: 500; }
+#header .sub { font-size: 12px; color: var(--text2); }
+.user-badge {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text2);
+}
+.admin-pill {
+  background: var(--purple-light); color: var(--purple);
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+}
+#status-bar {
+  font-size: 11px; padding: 4px 16px; text-align: center;
+  background: var(--amber-light); color: var(--amber-dark);
+  display: none;
+}
+
+/* ── Main ── */
+#main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ── Toolbar ── */
+#toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: var(--bg); border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.search-wrap { position: relative; flex: 1; min-width: 160px; }
+.search-wrap svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--text3); fill: none; stroke-width: 2; }
+.search-wrap input { width: 100%; padding: 6px 10px 6px 28px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: var(--bg2); color: var(--text); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { padding: 3px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); transition: all .15s; white-space: nowrap; }
+.chip.active { background: var(--purple); color: var(--purple-light); border-color: var(--purple); }
+.chip-rel { border-radius: 20px; font-size: 11px; padding: 3px 9px; cursor: pointer; border: 0.5px solid var(--border); background: transparent; color: var(--text2); }
+.chip-rel.active { background: var(--purple-light); color: var(--purple); border-color: var(--purple); }
+
+/* ── Graph ── */
+#graph-wrap { flex: 1; position: relative; overflow: hidden; min-height: 300px; }
+#canvas { display: block; width: 100%; height: 100%; cursor: default; }
+#tooltip {
+  position: absolute; pointer-events: none; display: none; z-index: 10;
+  background: var(--bg); border: 0.5px solid var(--border2);
+  border-radius: var(--r-lg); padding: 10px 13px; max-width: 240px;
+  font-size: 12px; line-height: 1.5;
+}
+#tooltip .tt-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+#tooltip .tt-desc { color: var(--text2); margin-bottom: 6px; }
+.tt-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.pill-green { background: var(--green-light); color: var(--green-dark); }
+.pill-amber { background: var(--amber-light); color: var(--amber-dark); }
+.pill-red   { background: var(--red-light);   color: var(--red-dark); }
+.pill-gray  { background: var(--bg3); color: var(--text2); }
+.pill-purple{ background: var(--purple-light); color: var(--purple); }
+.legend {
+  position: absolute; bottom: 10px; left: 10px;
+  background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--r-md); padding: 7px 11px;
+  display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text2);
+}
+.leg-row { display: flex; align-items: center; gap: 6px; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+#zoom-ctrl {
+  position: absolute; bottom: 10px; right: 10px;
+  display: flex; gap: 4px;
+}
+.zoom-btn {
+  width: 28px; height: 28px; border: 0.5px solid var(--border2); background: var(--bg);
+  border-radius: var(--r-md); font-size: 16px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 320px; flex-shrink: 0; background: var(--bg);
+  border-left: 0.5px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#panel { flex: 1; overflow-y: auto; padding: 14px; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 10px;
+  color: var(--text3); font-size: 13px; text-align: center;
+}
+.empty-state svg { width: 40px; height: 40px; stroke: var(--text3); fill: none; stroke-width: 1.5; opacity: .5; }
+.panel-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.node-icon { width: 38px; height: 38px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+.panel-title { font-size: 14px; font-weight: 500; }
+.panel-sub { font-size: 11px; color: var(--text2); }
+.sec-label { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 6px; }
+.usage-row { display: flex; align-items: center; gap: 8px; }
+.usage-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.usage-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+.usage-num { font-size: 12px; font-weight: 500; min-width: 24px; text-align: right; }
+
+/* Colonnes */
+.col-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.col-table th { font-size: 10px; font-weight: 500; color: var(--text3); text-align: left; padding: 4px 6px; border-bottom: 0.5px solid var(--border); }
+.col-table td { padding: 5px 6px; border-bottom: 0.5px solid var(--border); vertical-align: top; line-height: 1.4; }
+.col-table tr:last-child td { border-bottom: none; }
+.col-name { font-family: var(--font-mono); font-size: 11px; }
+.type-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: var(--font-mono); background: var(--bg2); color: var(--text2); white-space: nowrap; }
+.key-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: var(--font-mono); background: var(--purple-light); color: var(--purple); white-space: nowrap; }
+.col-desc-cell { color: var(--text2); font-size: 11px; max-width: 120px; }
+
+/* Liens */
+.link-item {
+  display: flex; align-items: center; gap: 6px; font-size: 12px;
+  padding: 5px 8px; border-radius: var(--r-md); cursor: pointer;
+  border: 0.5px solid var(--border); background: var(--bg2);
+  margin-bottom: 4px; transition: background .15s;
+}
+.link-item:hover { background: var(--bg3); }
+.link-item .link-key { font-size: 10px; font-family: var(--font-mono); color: var(--text3); margin-left: auto; }
+
+/* Historique */
+.hist-item { display: flex; gap: 8px; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 11.5px; }
+.hist-date { color: var(--text3); white-space: nowrap; font-family: var(--font-mono); font-size: 10.5px; }
+.hist-msg { color: var(--text2); }
+
+/* Action buttons */
+.action-row { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: transparent; color: var(--text); cursor: pointer; transition: background .15s; white-space: nowrap; }
+.btn:hover { background: var(--bg2); }
+.btn-primary { background: var(--purple); color: var(--purple-light); border-color: var(--purple); }
+.btn-primary:hover { background: var(--purple-dark); }
+.btn-danger { color: var(--red-dark); border-color: var(--red); }
+.btn-danger:hover { background: var(--red-light); }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+
+/* ── Modals ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  display: none; align-items: center; justify-content: center; z-index: 100;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--bg); border-radius: var(--r-lg); padding: 20px;
+  width: 500px; max-height: 85vh; overflow-y: auto;
+  border: 0.5px solid var(--border2); max-width: 95vw;
+}
+.modal-title { font-size: 15px; font-weight: 500; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.close-btn { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text2); line-height: 1; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1/-1; }
+label { font-size: 11px; font-weight: 500; color: var(--text2); }
+input, select, textarea { width: 100%; padding: 7px 10px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: var(--bg2); color: var(--text); font-family: var(--font); }
+textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+/* Éditeur de colonnes dans le modal */
+#col-editor { border: 0.5px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-top: 6px; }
+.col-editor-head { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 1.6fr 28px; gap: 6px; padding: 6px 8px; background: var(--bg3); font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; }
+.col-editor-row { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 1.6fr 28px; gap: 6px; padding: 5px 8px; border-top: 0.5px solid var(--border); align-items: center; }
+.col-editor-row input, .col-editor-row select { padding: 4px 6px; font-size: 11px; }
+.col-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 2px; border-radius: 4px; }
+.col-del:hover { color: var(--red-dark); background: var(--red-light); }
+#add-col-btn { width: 100%; padding: 6px; font-size: 11px; border: none; border-top: 0.5px solid var(--border); background: var(--bg2); color: var(--purple); cursor: pointer; }
+#add-col-btn:hover { background: var(--purple-light); }
+
+/* Loader */
+#loader {
+  position: fixed; inset: 0; background: var(--bg); display: flex;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 12px; z-index: 200; font-size: 13px; color: var(--text2);
+}
+.spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="spinner"></div>
+  <span id="loader-msg">Connexion à SharePoint...</span>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+  <div id="header">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
+    <div>
+      <h1>Data Catalogue</h1>
+      <div class="sub">Graphe des tables et liaisons</div>
+    </div>
+    <div class="user-badge">
+      <span id="user-name">Chargement...</span>
+      <span id="admin-badge" class="admin-pill" style="display:none">Admin</span>
+    </div>
+  </div>
+  <div id="status-bar" id="status-bar">⚠️ Mode démo — données locales (SharePoint non connecté)</div>
+
+  <!-- Toolbar -->
+  <div id="toolbar" style="border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--bg)">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search" placeholder="Rechercher une table..." oninput="onSearch(this.value)">
+      </div>
+      <div class="chips" id="domain-chips">
+        <span class="chip active" data-v="ALL" onclick="setDomain(this)">Tous</span>
+      </div>
+      <div class="chips">
+        <span class="chip-rel active" data-v="ALL" onclick="setReliability(this)">Toutes</span>
+        <span class="chip-rel" data-v="Certifiée" onclick="setReliability(this)">✓ Certifiée</span>
+        <span class="chip-rel" data-v="En validation" onclick="setReliability(this)">◑ En validation</span>
+        <span class="chip-rel" data-v="Non vérifiée" onclick="setReliability(this)">○ Non vérifiée</span>
+      </div>
+      <div id="admin-tools" style="display:none;margin-left:auto">
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
+        <button class="btn btn-sm" onclick="refreshData()" title="Recharger depuis SharePoint">↻ Actualiser</button>
+      </div>
+  </div>
+
+  <div id="main">
+    <div style="display:flex;flex:1;overflow:hidden;min-height:0">
+
+        <!-- Graph -->
+        <div id="graph-wrap">
+          <canvas id="canvas"></canvas>
+          <div id="tooltip">
+            <div class="tt-name" id="tt-name"></div>
+            <div class="tt-desc" id="tt-desc"></div>
+            <div class="tt-pills" id="tt-pills"></div>
+          </div>
+          <div class="legend" id="legend"></div>
+          <div id="zoom-ctrl">
+            <button class="zoom-btn" onclick="zoom(1.2)">＋</button>
+            <button class="zoom-btn" onclick="zoom(0.83)">－</button>
+            <button class="zoom-btn" title="Réinitialiser vue" onclick="resetZoom()">⊙</button>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="sidebar">
+          <div id="panel">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/><line x1="18" y1="8.5" x2="18" y2="15.5"/></svg>
+              <span>Cliquez sur un nœud<br>pour afficher les détails</span>
+            </div>
+          </div>
+        </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajout / Édition Table -->
+<div class="overlay" id="modal-table">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-table-title">Nouvelle table</span>
+      <button class="close-btn" onclick="closeModal('modal-table')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nom de la table *</label>
+        <input id="f-name" placeholder="ex: FACT_VENTES">
+      </div>
+      <div class="form-group">
+        <label>Domaine métier *</label>
+        <select id="f-domain"></select>
+      </div>
+      <div class="form-group full">
+        <label>Description courte</label>
+        <input id="f-desc" placeholder="Résumé en une phrase">
+      </div>
+      <div class="form-group full">
+        <label>Description détaillée</label>
+        <textarea id="f-desc-long" placeholder="Contexte, périmètre, fréquence de mise à jour, source..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Fiabilité</label>
+        <select id="f-rel"></select>
+      </div>
+      <div class="form-group">
+        <label>Propriétaire (Owner)</label>
+        <input id="f-owner" placeholder="ex: Équipe Data Finance">
+      </div>
+      <div class="form-group">
+        <label>Fréquence de mise à jour</label>
+        <select id="f-freq">
+          <option value="">Non renseignée</option>
+          <option>Temps réel</option><option>Horaire</option><option>Quotidienne</option>
+          <option>Hebdomadaire</option><option>Mensuelle</option><option>Annuelle</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Source des données</label>
+        <input id="f-source" placeholder="ex: ERP SAP, SIRH...">
+      </div>
+      <div class="form-group full">
+        <label>Lien SharePoint / documentation</label>
+        <input id="f-sp" placeholder="https://...">
+      </div>
+      <div class="form-group full">
+        <label>Colonnes</label>
+        <div id="col-editor">
+          <div class="col-editor-head">
+            <span>Nom colonne</span><span>Type</span><span>Clé</span><span>Description</span><span></span>
+          </div>
+          <div id="col-rows"></div>
+          <button id="add-col-btn" onclick="addColRow()">＋ Ajouter une colonne</button>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Note de modification (historique)</label>
+        <input id="f-note" placeholder="ex: Ajout colonne MONTANT_TTC">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-table')">Annuler</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveTable()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmation suppression -->
+<div class="overlay" id="modal-delete">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">Supprimer la table <button class="close-btn" onclick="closeModal('modal-delete')">✕</button></div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.6">
+      Êtes-vous sûr de vouloir supprimer <strong id="del-name"></strong> ?<br>
+      Cette action est irréversible et supprimera aussi les colonnes associées.
+    </p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-delete')">Annuler</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let STATE = {
+  tables: [], columns: [], history: [],
+  currentUser: null, isAdmin: false,
+  selectedId: null, editingId: null,
+  filter: { domain: 'ALL', reliability: 'ALL', search: '' },
+  zoom: { k: 1, x: 0, y: 0 },
+  sharepointMode: false   // passe à true si la connexion SP réussit
+};
+
+const DOMAIN_COLORS = {
+  Finance: '#534AB7', RH: '#1D9E75', Clients: '#D85A30',
+  Référentiel: '#378ADD', Risques: '#D4537E', IT: '#BA7517'
+};
+const REL_CONFIG = {
+  Certifiée:        { cls: 'pill-green', dot: '●', label: '✓ Certifiée' },
+  'En validation':  { cls: 'pill-amber', dot: '◑', label: '◑ En validation' },
+  'Non vérifiée':   { cls: 'pill-red',   dot: '○', label: '○ Non vérifiée' }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  DONNÉES DÉMO (utilisées si SharePoint non disponible)
+// ══════════════════════════════════════════════════════════════
+const DEMO_TABLES = [
+  { id: 't1', Title: 'FACT_VENTES', Domain: 'Finance', Description: 'Table de faits des transactions commerciales mensuelles', DescriptionLong: 'Contient l\'ensemble des transactions de vente agrégées au mois. Alimentée quotidiennement depuis l\'ERP SAP via le pipeline ETL Finance. Périmètre : toutes les entités juridiques du groupe.', Reliability: 'Certifiée', Owner: 'Équipe Data Finance', Frequency: 'Quotidienne', Source: 'ERP SAP', Sharepoint: 'https://sharepoint.example.com/ventes', Usage: 87 },
+  { id: 't2', Title: 'DIM_CLIENT', Domain: 'Clients', Description: 'Référentiel clients avec informations de contact et segmentation', DescriptionLong: 'Dimension clients alimentée depuis le CRM Salesforce. Contient les informations d\'identification, de contact et de segmentation marketing. Mise à jour hebdomadaire.', Reliability: 'Certifiée', Owner: 'Équipe CRM', Frequency: 'Hebdomadaire', Source: 'Salesforce CRM', Sharepoint: 'https://sharepoint.example.com/clients', Usage: 72 },
+  { id: 't3', Title: 'DIM_PRODUIT', Domain: 'Référentiel', Description: 'Catalogue produits avec hiérarchie catégorie / sous-catégorie', DescriptionLong: 'Référentiel produits issu du PIM (Product Information Management). Contient la hiérarchie complète catégorie > sous-catégorie > produit ainsi que les prix de référence.', Reliability: 'Certifiée', Owner: 'Équipe Référentiels', Frequency: 'Mensuelle', Source: 'PIM interne', Sharepoint: 'https://sharepoint.example.com/produits', Usage: 65 },
+  { id: 't4', Title: 'DIM_DATE', Domain: 'Référentiel', Description: 'Calendrier fiscal et grégorien avec semaines, mois, trimestres', DescriptionLong: 'Table de dates statique couvrant 2010-2030. Contient le calendrier grégorien ET fiscal (exercice décalé avril-mars). Référence pour tous les faits temporels.', Reliability: 'Certifiée', Owner: 'Équipe Data Platform', Frequency: 'Annuelle', Source: 'Génération automatique', Sharepoint: 'https://sharepoint.example.com/dim-date', Usage: 90 },
+  { id: 't5', Title: 'FACT_RH', Domain: 'RH', Description: 'Données salariales et effectifs mensuels par département', DescriptionLong: 'Table de faits RH en cours de validation. Contient les salaires bruts, effectifs et indicateurs RH mensuels par département. Source : extraction SIRH mensuelle.', Reliability: 'En validation', Owner: 'Équipe RH Data', Frequency: 'Mensuelle', Source: 'SIRH Workday', Sharepoint: 'https://sharepoint.example.com/rh', Usage: 34 },
+  { id: 't6', Title: 'DIM_EMPLOYE', Domain: 'RH', Description: 'Référentiel des employés actifs et inactifs', DescriptionLong: 'Dimension employés synchronisée depuis Workday. Contient les informations d\'identification, de poste et d\'organisation pour tous les employés actifs et les sortants des 5 dernières années.', Reliability: 'En validation', Owner: 'Équipe RH Data', Frequency: 'Quotidienne', Source: 'SIRH Workday', Sharepoint: 'https://sharepoint.example.com/employes', Usage: 28 },
+  { id: 't7', Title: 'DIM_DEPARTEMENT', Domain: 'RH', Description: 'Structure organisationnelle des départements', DescriptionLong: 'Import manuel de l\'organigramme. En attente de connexion automatisée au SIRH. À utiliser avec précaution.', Reliability: 'Non vérifiée', Owner: 'Non assigné', Frequency: 'Manuelle', Source: 'Import Excel manuel', Sharepoint: '', Usage: 12 },
+  { id: 't8', Title: 'AGG_VENTES_MENS', Domain: 'Finance', Description: 'Agrégation mensuelle des ventes par région et produit', DescriptionLong: 'Table agrégée calculée à partir de FACT_VENTES. Optimisée pour le reporting mensuel. Contient les totaux HT/TTC, le nombre de transactions et les parts de marché par région.', Reliability: 'Certifiée', Owner: 'Équipe Data Finance', Frequency: 'Mensuelle', Source: 'Calculée depuis FACT_VENTES', Sharepoint: 'https://sharepoint.example.com/agg-ventes', Usage: 55 }
+];
+
+const DEMO_COLUMNS = [
+  {id:'c1',TableId:'t1',ColumnName:'ID_VENTE',DataType:'INT',KeyType:'PK',Description:'Identifiant unique de la transaction de vente'},
+  {id:'c2',TableId:'t1',ColumnName:'DATE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE (format YYYYMMDD)'},
+  {id:'c3',TableId:'t1',ColumnName:'CLIENT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_CLIENT'},
+  {id:'c4',TableId:'t1',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_PRODUIT'},
+  {id:'c5',TableId:'t1',ColumnName:'MONTANT_HT',DataType:'DECIMAL',KeyType:'',Description:'Montant hors taxes en euros'},
+  {id:'c6',TableId:'t1',ColumnName:'MONTANT_TTC',DataType:'DECIMAL',KeyType:'',Description:'Montant toutes taxes comprises en euros'},
+  {id:'c7',TableId:'t1',ColumnName:'QUANTITE',DataType:'INT',KeyType:'',Description:'Nombre d\'unités vendues'},
+  {id:'c8',TableId:'t2',ColumnName:'CLIENT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique client (clé métier)'},
+  {id:'c9',TableId:'t2',ColumnName:'NOM',DataType:'NVARCHAR',KeyType:'',Description:'Nom de famille ou raison sociale'},
+  {id:'c10',TableId:'t2',ColumnName:'PRENOM',DataType:'NVARCHAR',KeyType:'',Description:'Prénom (personnes physiques uniquement)'},
+  {id:'c11',TableId:'t2',ColumnName:'EMAIL',DataType:'VARCHAR',KeyType:'',Description:'Adresse email principale de contact'},
+  {id:'c12',TableId:'t2',ColumnName:'SEGMENT',DataType:'VARCHAR',KeyType:'',Description:'Segment marketing : Grand Compte / PME / Particulier'},
+  {id:'c13',TableId:'t3',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique produit'},
+  {id:'c14',TableId:'t3',ColumnName:'LIBELLE',DataType:'NVARCHAR',KeyType:'',Description:'Libellé commercial du produit'},
+  {id:'c15',TableId:'t3',ColumnName:'CATEGORIE',DataType:'VARCHAR',KeyType:'',Description:'Catégorie niveau 1 de la hiérarchie produit'},
+  {id:'c16',TableId:'t3',ColumnName:'PRIX_REF',DataType:'DECIMAL',KeyType:'',Description:'Prix de référence catalogue en euros HT'},
+  {id:'c17',TableId:'t4',ColumnName:'DATE_ID',DataType:'INT',KeyType:'PK',Description:'Clé de date au format YYYYMMDD'},
+  {id:'c18',TableId:'t4',ColumnName:'DATE_COMPLETE',DataType:'DATE',KeyType:'',Description:'Date complète au format ISO 8601'},
+  {id:'c19',TableId:'t4',ColumnName:'MOIS',DataType:'INT',KeyType:'',Description:'Numéro de mois (1-12)'},
+  {id:'c20',TableId:'t4',ColumnName:'TRIMESTRE',DataType:'INT',KeyType:'',Description:'Numéro de trimestre fiscal (1-4)'},
+  {id:'c21',TableId:'t5',ColumnName:'ID_RH',DataType:'INT',KeyType:'PK',Description:'Identifiant unique de la ligne RH mensuelle'},
+  {id:'c22',TableId:'t5',ColumnName:'EMPLOYE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_EMPLOYE'},
+  {id:'c23',TableId:'t5',ColumnName:'DATE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE'},
+  {id:'c24',TableId:'t5',ColumnName:'SALAIRE_BRUT',DataType:'DECIMAL',KeyType:'',Description:'Salaire brut mensuel en euros'},
+  {id:'c25',TableId:'t6',ColumnName:'EMPLOYE_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique employé'},
+  {id:'c26',TableId:'t6',ColumnName:'NOM_COMPLET',DataType:'NVARCHAR',KeyType:'',Description:'Nom et prénom concatenés'},
+  {id:'c27',TableId:'t6',ColumnName:'DEPT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DEPARTEMENT'},
+  {id:'c28',TableId:'t7',ColumnName:'DEPT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique département'},
+  {id:'c29',TableId:'t7',ColumnName:'NOM_DEPT',DataType:'NVARCHAR',KeyType:'',Description:'Nom officiel du département'},
+  {id:'c30',TableId:'t8',ColumnName:'MOIS_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE (premier jour du mois)'},
+  {id:'c31',TableId:'t8',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_PRODUIT'},
+  {id:'c32',TableId:'t8',ColumnName:'TOTAL_HT',DataType:'DECIMAL',KeyType:'',Description:'Total des ventes HT du mois en euros'},
+  {id:'c33',TableId:'t8',ColumnName:'NB_TRANSACTIONS',DataType:'INT',KeyType:'',Description:'Nombre de transactions agrégées sur le mois'}
+];
+
+const DEMO_HISTORY = [
+  {TableId:'t1',Date:'2024-06-01',Note:'Ajout colonne MONTANT_TTC'},{TableId:'t1',Date:'2024-03-15',Note:'Migration vers nouveau schéma'},{TableId:'t1',Date:'2023-11-20',Note:'Création initiale'},
+  {TableId:'t2',Date:'2024-05-20',Note:'Ajout champ SEGMENT'},{TableId:'t2',Date:'2024-01-10',Note:'Nettoyage doublons'},
+  {TableId:'t3',Date:'2024-04-12',Note:'Mise à jour catalogue Q2'},{TableId:'t3',Date:'2023-12-01',Note:'Import ERP initial'},
+  {TableId:'t4',Date:'2024-01-01',Note:'Extension 2024-2025'},
+  {TableId:'t5',Date:'2024-05-30',Note:'Livraison initiale — en cours de validation'},
+  {TableId:'t6',Date:'2024-05-01',Note:'Synchronisation SIRH Workday'},
+  {TableId:'t7',Date:'2024-02-01',Note:'Import manuel organigramme'},
+  {TableId:'t8',Date:'2024-06-01',Note:'Recalcul Q1-Q2'},{TableId:'t8',Date:'2024-01-15',Note:'Création pour reporting mensuel'}
+];
+
+// ══════════════════════════════════════════════════════════════
+//  SHAREPOINT API
+// ══════════════════════════════════════════════════════════════
+async function spGet(list) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=500`;
+  const r = await fetch(url, { headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() } });
+  if (r.status === 404) throw new Error(`LIST_NOT_FOUND:${list}`);
+  if (!r.ok) throw new Error(`SP_ERROR:${r.status}`);
+  const d = await r.json();
+  if (d.error) throw new Error(`LIST_NOT_FOUND:${list}`);
+  return d.d.results;
+}
+async function spPost(list, body) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('SP POST error');
+  return (await r.json()).d;
+}
+async function spPatch(list, id, body) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*', 'X-HTTP-Method': 'MERGE' },
+    body: JSON.stringify(body)
+  });
+}
+async function spDelete(list, id) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
+  await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*' } });
+}
+let _digest = null;
+async function getDigest() {
+  if (_digest) return _digest;
+  const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/contextinfo`, { method: 'POST', headers: { Accept: 'application/json;odata=verbose' } });
+  const d = await r.json();
+  _digest = d.d.GetContextWebInformation.FormDigestValue;
+  setTimeout(() => { _digest = null; }, 1680000);
+  return _digest;
+}
+async function getCurrentUser() {
+  const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/web/currentuser`, { headers: { Accept: 'application/json;odata=verbose' } });
+  const d = await r.json();
+  return d.d;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+async function init() {
+  setLoader('Connexion à SharePoint...');
+  // Remplir selects config
+  const ds = document.getElementById('domain-chips');
+  CONFIG.DOMAINS.forEach(d => {
+    const ch = document.createElement('span');
+    ch.className = 'chip'; ch.dataset.v = d;
+    ch.textContent = d; ch.onclick = function(){ setDomain(this); };
+    ds.appendChild(ch);
+  });
+  const fd = document.getElementById('f-domain');
+  CONFIG.DOMAINS.forEach(d => { fd.innerHTML += `<option>${d}</option>`; });
+  const fr = document.getElementById('f-rel');
+  CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
+
+  try {
+    const user = await getCurrentUser();
+    STATE.currentUser = user;
+    STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
+    document.getElementById('user-name').textContent = user.Title || user.Email;
+    if (STATE.isAdmin) {
+      document.getElementById('admin-badge').style.display = 'inline';
+      document.getElementById('admin-tools').style.display = 'flex';
+    }
+    STATE.sharepointMode = true;
+    setLoader('Chargement du catalogue...');
+    await loadFromSharePoint();
+  } catch(e) {
+    const isOnSP = window.location.hostname.includes('sharepoint.com');
+    const errMsg = e.message || '';
+    
+    if (errMsg.startsWith('LIST_NOT_FOUND:')) {
+      // SP connecté mais liste introuvable
+      const listName = errMsg.split(':')[1];
+      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+      showStatusError(`⚠️ Liste introuvable : "${listName}" — Vérifiez le nom exact dans SharePoint et dans CONFIG`);
+      // Pas de mode démo, graphe vide avec message
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
+    } else if (!isOnSP || errMsg.includes('Failed to fetch') || !STATE.currentUser) {
+      // Pas sur SP ou non joignable → mode démo
+      document.getElementById('user-name').textContent = 'Mode démo';
+      // Remap demo table domains to configured domains
+      const demoDomains = ['Finance','RH','Clients','Référentiel'];
+      STATE.tables = DEMO_TABLES.map((t, i) => ({
+        ...t,
+        Domain: CONFIG.DOMAINS[demoDomains.indexOf(t.Domain) % CONFIG.DOMAINS.length] || t.Domain
+      }));
+      STATE.columns = DEMO_COLUMNS;
+      STATE.history = DEMO_HISTORY;
+      showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
+      document.getElementById('admin-tools').style.display = 'flex';
+      STATE.isAdmin = true;
+      document.getElementById('admin-badge').style.display = 'inline';
+    } else {
+      // SP joignable mais autre erreur
+      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+      showStatusError(`⚠️ Erreur de chargement — ${errMsg}`);
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
+    }
+  }
+
+  hideLoader();
+  // Small delay to ensure DOM is rendered before canvas sizing
+  setTimeout(() => {
+    initGraph();
+    // If SP connected but no tables yet, show a helpful message
+    if (STATE.sharepointMode && STATE.tables.length === 0) {
+      showEmptyState();
+    }
+  }, 50);
+}
+
+async function loadFromSharePoint() {
+  const [tables, cols, hist] = await Promise.all([
+    spGet(CONFIG.LIST_TABLES),
+    spGet(CONFIG.LIST_COLUMNS),
+    spGet(CONFIG.LIST_HISTORY)
+  ]);
+  // Hide any previous error
+  document.getElementById('status-bar').style.display = 'none';
+  STATE.tables = tables.map(t => ({
+    id: String(t.Id), Title: t.Titre, Domain: t.Domaine, Description: t.Description,
+    DescriptionLong: t.DescriptionLongue || '', Reliability: t.Fiabilite,
+    Owner: t.Proprietaire || '', Frequency: t.Frequence || '', Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || '', Usage: t.NombreUsages || 0
+  }));
+  STATE.columns = cols.map(c => ({
+    id: String(c.Id), TableId: String(c.IdTable),
+    ColumnName: c.NomColonne, DataType: c.TypeDonnee,
+    KeyType: c.TypeCle || '', Description: c.Description || ''
+  }));
+  STATE.history = hist.map(h => ({ TableId: String(h.IdTable), Date: h.DateModification?.split('T')[0] || '', Note: h.Note }));
+}
+
+async function refreshData() {
+  if (!STATE.sharepointMode) return;
+  setLoader('Actualisation...'); document.getElementById('app').style.display = 'none';
+  try { await loadFromSharePoint(); } catch(e) { alert('Erreur de chargement'); }
+  hideLoader(); document.getElementById('app').style.display = 'flex';
+  setTimeout(initGraph, 50);
+}
+
+function showStatusWarn(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--amber-light)';
+  bar.style.color = 'var(--amber-dark)';
+  bar.style.display = 'block';
+}
+function showStatusError(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--red-light)';
+  bar.style.color = 'var(--red-dark)';
+  bar.style.display = 'block';
+}
+function showStatusOk(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--green-light)';
+  bar.style.color = 'var(--green-dark)';
+  bar.style.display = 'block';
+  setTimeout(() => { bar.style.display = 'none'; }, 4000);
+}
+function setLoader(msg) { document.getElementById('loader-msg').textContent = msg; document.getElementById('loader').style.display = 'flex'; }
+function hideLoader() { document.getElementById('loader').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }
+
+// ══════════════════════════════════════════════════════════════
+//  GRAPH ENGINE
+// ══════════════════════════════════════════════════════════════
+let sim, gNodes, gLinks, canvasCtx;
+
+function buildLinks() {
+  // Détecter automatiquement les liaisons via les colonnes FK homonymes
+  const fkMap = {};
+  STATE.columns.forEach(c => {
+    if (!c.KeyType) return;
+    if (!fkMap[c.ColumnName]) fkMap[c.ColumnName] = {};
+    if (c.KeyType === 'PK') fkMap[c.ColumnName].pk = c.TableId;
+    else if (c.KeyType === 'FK') {
+      if (!fkMap[c.ColumnName].fks) fkMap[c.ColumnName].fks = [];
+      fkMap[c.ColumnName].fks.push(c.TableId);
+    }
+  });
+  const links = [];
+  Object.entries(fkMap).forEach(([key, v]) => {
+    if (v.pk && v.fks) {
+      v.fks.forEach(fk => {
+        if (fk !== v.pk) links.push({ source: fk, target: v.pk, key });
+      });
+    }
+  });
+  return links;
+}
+
+function initGraph() {
+  const canvas = document.getElementById('canvas');
+  const wrap = document.getElementById('graph-wrap');
+  // Ensure wrap has actual height (fix for iframe contexts)
+  // If not rendered yet, retry after a frame
+  let wH = wrap.clientHeight;
+  let wW = wrap.clientWidth;
+  if (!window._graphRetry) window._graphRetry = 0;
+  if ((wH < 10 || wW < 10) && window._graphRetry < 20) {
+    window._graphRetry++;
+    setTimeout(initGraph, 100);
+    return;
+  }
+  window._graphRetry = 0;
+  // Fallback minimum dimensions if still zero
+  if (wH < 10) wH = Math.max(window.innerHeight - 150, 300);
+  if (wW < 10) wW = Math.max(window.innerWidth - 320, 400);
+  canvas.width = wW * devicePixelRatio;
+  canvas.height = wH * devicePixelRatio;
+  canvas.style.width = wW + 'px';
+  canvas.style.height = wH + 'px';
+  canvasCtx = canvas.getContext('2d');
+  canvasCtx.scale(devicePixelRatio, devicePixelRatio);
+  const W = wW, H = wH;
+
+  gNodes = STATE.tables.map(t => ({
+    ...t, x: W/2 + (Math.random()-.5)*300, y: H/2 + (Math.random()-.5)*300, vx:0, vy:0
+  }));
+  const nodeMap = Object.fromEntries(gNodes.map(n => [n.id, n]));
+  const rawLinks = buildLinks();
+  gLinks = rawLinks.filter(l => nodeMap[l.source] && nodeMap[l.target])
+    .map(l => ({ ...l, source: nodeMap[l.source], target: nodeMap[l.target] }));
+
+  sim = d3.forceSimulation(gNodes)
+    .force('link', d3.forceLink(gLinks).distance(d => 80 + 100*(1-(d.source.Usage+d.target.Usage)/200)).strength(.35))
+    .force('charge', d3.forceManyBody().strength(-280))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(d => nodeR(d)+8))
+    .on('tick', () => drawGraph(W, H));
+
+  buildLegend();
+  setupCanvasEvents(canvas, W, H);
+}
+
+function nodeR(n) { return 16 + (n.Usage || 0) * .13; }
+function visible(n) {
+  const { domain, reliability, search } = STATE.filter;
+  return (domain === 'ALL' || n.Domain === domain)
+    && (reliability === 'ALL' || n.Reliability === reliability)
+    && (!search || n.Title.toLowerCase().includes(search) || n.Description.toLowerCase().includes(search));
+}
+
+function drawGraph(W, H) {
+  const ctx = canvasCtx;
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+  ctx.translate(STATE.zoom.x, STATE.zoom.y);
+  ctx.scale(STATE.zoom.k, STATE.zoom.k);
+
+  // Liens
+  gLinks.forEach(l => {
+    const vs = visible(l.source), vt = visible(l.target);
+    ctx.beginPath();
+    ctx.moveTo(l.source.x, l.source.y);
+    ctx.lineTo(l.target.x, l.target.y);
+    ctx.strokeStyle = vs && vt ? 'rgba(136,135,128,.45)' : 'rgba(136,135,128,.07)';
+    ctx.lineWidth = 1.2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+    if (vs && vt) {
+      const mx = (l.source.x+l.target.x)/2, my = (l.source.y+l.target.y)/2;
+      ctx.font = '9px monospace'; ctx.fillStyle = 'rgba(136,135,128,.7)';
+      ctx.textAlign = 'center'; ctx.fillText(l.key, mx, my - 4);
+    }
+  });
+
+  // Nœuds
+  gNodes.forEach(n => {
+    const vis = visible(n);
+    const r = nodeR(n);
+    const color = DOMAIN_COLORS[n.Domain] || '#888';
+    const isSelected = n.id === STATE.selectedId;
+    ctx.globalAlpha = vis ? 1 : .1;
+
+    if (isSelected) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, r+6, 0, 2*Math.PI);
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Arc d'usage
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2*Math.PI);
+    ctx.fillStyle = color + '1a'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(n.x, n.y - r);
+    ctx.arc(n.x, n.y, r, -Math.PI/2, -Math.PI/2 + 2*Math.PI*(n.Usage||0)/100);
+    ctx.fillStyle = color + '55'; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2*Math.PI);
+    ctx.strokeStyle = color; ctx.lineWidth = isSelected ? 2 : 1; ctx.stroke();
+
+    // Label
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    ctx.fillStyle = isDark ? '#e8e6dc' : '#2c2c2a';
+    ctx.font = `${isSelected?'500 ':''}10.5px system-ui`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = n.Title.length > 11 ? n.Title.slice(0,10)+'…' : n.Title;
+    ctx.fillText(label, n.x, n.y);
+
+    // Badge fiabilité
+    const relDot = { Certifiée:'●', 'En validation':'◑', 'Non vérifiée':'○' }[n.Reliability] || '○';
+    const relCol = { Certifiée:'#3B6D11', 'En validation':'#854F0B', 'Non vérifiée':'#A32D2D' }[n.Reliability] || '#888';
+    ctx.font = '9px sans-serif'; ctx.fillStyle = relCol;
+    ctx.fillText(relDot, n.x + r*.65, n.y - r*.65);
+
+    // Score usage
+    ctx.font = 'bold 9px system-ui'; ctx.fillStyle = color;
+    ctx.fillText(n.Usage || 0, n.x, n.y + r + 10);
+
+    ctx.globalAlpha = 1;
+  });
+  ctx.restore();
+}
+
+function buildLegend() {
+  const leg = document.getElementById('legend');
+  const domains = [...new Set(STATE.tables.map(t => t.Domain || t.Domaine))];
+  leg.innerHTML = domains.map(d => `<div class="leg-row"><span class="leg-dot" style="background:${DOMAIN_COLORS[d]||'#888'}"></span>${d}</div>`).join('');
+}
+
+// ── Événements canvas ──
+let dragging = null;
+function setupCanvasEvents(canvas, W, H) {
+  canvas.addEventListener('mousemove', e => {
+    const [mx, my] = toWorld(e, canvas);
+    const n = hitTest(mx, my);
+    canvas.style.cursor = n ? 'pointer' : 'default';
+    const tt = document.getElementById('tooltip');
+    if (n && visible(n)) {
+      tt.style.display = 'block';
+      tt.style.left = (e.offsetX + 16) + 'px'; tt.style.top = (e.offsetY - 12) + 'px';
+      const rel = REL_CONFIG[n.Reliability] || REL_CONFIG['Non vérifiée'];
+      const cols = STATE.columns.filter(c => c.TableId === n.id);
+      document.getElementById('tt-name').textContent = n.Title;
+      document.getElementById('tt-desc').textContent = n.Description;
+      document.getElementById('tt-pills').innerHTML =
+        `<span class="pill ${rel.cls}">${rel.dot} ${n.Reliability}</span>` +
+        `<span class="pill pill-gray">${cols.length} colonnes</span>` +
+        `<span class="pill pill-purple">Usage : ${n.Usage}</span>` +
+        (n.Owner ? `<span class="pill pill-gray">${n.Owner}</span>` : '');
+      if (dragging) { dragging.fx = mx; dragging.fy = my; }
+    } else { tt.style.display = 'none'; if (dragging) { dragging.fx = mx; dragging.fy = my; } }
+  });
+
+  canvas.addEventListener('click', e => {
+    const [mx, my] = toWorld(e, canvas);
+    const n = hitTest(mx, my);
+    if (n && visible(n)) {
+      n.Usage = Math.min((n.Usage||0)+1, 99);
+      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
+      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      STATE.selectedId = n.id;
+      renderPanel(n);
+    }
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    const [mx, my] = toWorld(e, canvas);
+    dragging = hitTest(mx, my);
+    if (dragging) sim.alphaTarget(.3).restart();
+  });
+  canvas.addEventListener('mouseup', () => {
+    if (dragging) { dragging.fx = null; dragging.fy = null; }
+    dragging = null; sim.alphaTarget(0);
+  });
+  canvas.addEventListener('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    STATE.zoom.k = Math.max(.2, Math.min(4, STATE.zoom.k * factor));
+    sim.alpha(.1).restart();
+  }, { passive: false });
+}
+
+function toWorld(e, canvas) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX-r.left-STATE.zoom.x)/STATE.zoom.k, (e.clientY-r.top-STATE.zoom.y)/STATE.zoom.k];
+}
+function hitTest(mx, my) { return gNodes.find(n => Math.hypot(n.x-mx, n.y-my) < nodeR(n)+4); }
+function zoom(f) { STATE.zoom.k = Math.max(.2, Math.min(4, STATE.zoom.k*f)); sim.alpha(.1).restart(); }
+function resetZoom() { STATE.zoom = {k:1,x:0,y:0}; sim.alpha(.3).restart(); }
+
+// ── Filtres ──
+function onSearch(v) { STATE.filter.search = v.trim().toLowerCase(); sim.alpha(.1).restart(); }
+function setDomain(el) {
+  document.querySelectorAll('#domain-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); STATE.filter.domain = el.dataset.v; sim.alpha(.1).restart();
+}
+function setReliability(el) {
+  document.querySelectorAll('.chip-rel').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); STATE.filter.reliability = el.dataset.v; sim.alpha(.1).restart();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PANNEAU DE DÉTAIL
+// ══════════════════════════════════════════════════════════════
+function showEmptyState() {
+  document.getElementById('panel').innerHTML = `
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
+        <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/>
+        <circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/>
+      </svg>
+      <span>Catalogue vide</span>
+      <span style="font-size:11px;color:var(--text3);max-width:200px;text-align:center;line-height:1.5">
+        SharePoint est connecté mais aucune table n'a encore été ajoutée.${STATE.isAdmin ? '<br><br>Cliquez sur <b>+ Nouvelle table</b> pour commencer.' : ''}
+      </span>
+    </div>`;
+}
+function renderPanel(node) {
+  const cols = STATE.columns.filter(c => c.TableId === node.id);
+  const hist = STATE.history.filter(h => h.TableId === node.id).sort((a,b)=>b.Date.localeCompare(a.Date));
+  const rel = REL_CONFIG[node.Reliability] || REL_CONFIG['Non vérifiée'];
+  const color = DOMAIN_COLORS[node.Domain] || '#888';
+  const maxUsage = Math.max(...STATE.tables.map(t=>t.Usage||0), 1);
+
+  // Liens (tables reliées)
+  const relatedLinks = gLinks.filter(l=>l.source.id===node.id||l.target.id===node.id);
+  const related = relatedLinks.map(l=>({ t: l.source.id===node.id?l.target:l.source, key: l.key }));
+
+  document.getElementById('panel').innerHTML = `
+    <div class="panel-head">
+      <div class="node-icon" style="background:${color}1a;color:${color}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+      </div>
+      <div>
+        <div class="panel-title">${node.Title}</div>
+        <div class="panel-sub">${node.Domain}${node.Owner ? ' · ' + node.Owner : ''}</div>
+      </div>
+    </div>
+
+    <span class="pill ${rel.cls}">${rel.dot} ${node.Reliability}</span>
+    ${node.Frequency ? `<span class="pill pill-gray" style="margin-left:4px">${node.Frequency}</span>` : ''}
+    ${node.Source ? `<span class="pill pill-gray" style="margin-left:4px">📥 ${node.Source}</span>` : ''}
+
+    <div style="margin-top:10px;font-size:12px;color:var(--text2);line-height:1.55">${node.Description}</div>
+    ${node.DescriptionLong ? `<div style="margin-top:6px;font-size:11.5px;color:var(--text3);line-height:1.55;padding-top:6px;border-top:0.5px solid var(--border)">${node.DescriptionLong}</div>` : ''}
+
+    <div class="sec-label">Popularité d'usage</div>
+    <div class="usage-row">
+      <div class="usage-bar"><div class="usage-fill" style="width:${Math.round((node.Usage||0)/maxUsage*100)}%;background:${color}"></div></div>
+      <span class="usage-num" style="color:${color}">${node.Usage||0}</span>
+    </div>
+
+    <div class="sec-label">Colonnes (${cols.length})</div>
+    <div style="max-height:200px;overflow-y:auto;border:0.5px solid var(--border);border-radius:var(--r-md);overflow:hidden">
+      <table class="col-table">
+        <thead><tr><th>Nom</th><th>Type</th><th>Clé</th><th>Description</th></tr></thead>
+        <tbody>
+          ${cols.length ? cols.map(c=>`
+            <tr>
+              <td class="col-name">${c.ColumnName}</td>
+              <td><span class="type-badge">${c.DataType}</span></td>
+              <td>${c.KeyType ? `<span class="key-badge">${c.KeyType}</span>` : ''}</td>
+              <td class="col-desc-cell">${c.Description || '<span style="color:var(--text3)">—</span>'}</td>
+            </tr>`).join('') : `<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:10px;font-size:12px">Aucune colonne renseignée</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    ${related.length ? `
+    <div class="sec-label">Tables liées (${related.length})</div>
+    <div>${related.map(({t,key})=>`
+      <div class="link-item" onclick="selectTable('${t.id}')">
+        <span style="width:8px;height:8px;border-radius:50%;background:${DOMAIN_COLORS[t.Domain||t.Domaine]||'#888'};flex-shrink:0"></span>
+        <span style="font-size:12px">${t.Title}</span>
+        <span style="font-size:11px;color:var(--text2)">${t.Domain||t.Domaine}</span>
+        <span class="link-key">${key}</span>
+      </div>`).join('')}
+    </div>` : ''}
+
+    ${hist.length ? `
+    <div class="sec-label">Historique (${hist.length})</div>
+    <div>${hist.map(h=>`<div class="hist-item"><span class="hist-date">${h.Date}</span><span class="hist-msg">${h.Note}</span></div>`).join('')}</div>
+    ` : ''}
+
+    <div class="action-row">
+      ${node.Sharepoint ? `<button class="btn btn-primary" onclick="window.open('${node.Sharepoint}','_blank')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        SharePoint
+      </button>` : ''}
+      <button class="btn" onclick="exportTable('${node.id}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exporter JSON
+      </button>
+      ${STATE.isAdmin ? `
+        <button class="btn" onclick="openEditModal('${node.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Modifier
+        </button>
+        <button class="btn btn-danger" onclick="openDeleteModal('${node.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Supprimer
+        </button>` : ''}
+    </div>
+  `;
+}
+
+function selectTable(id) {
+  const n = gNodes.find(n=>n.id===id);
+  if (n) { n.Usage = Math.min((n.Usage||0)+1,99); STATE.selectedId=id; renderPanel(n); }
+}
+
+function exportTable(id) {
+  const t = STATE.tables.find(t=>t.id===id);
+  const cols = STATE.columns.filter(c=>c.TableId===id);
+  const hist = STATE.history.filter(h=>h.TableId===id);
+  const blob = new Blob([JSON.stringify({table:t,columns:cols,history:hist},null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${t.Title}.json`; a.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL ADMIN — AJOUT / ÉDITION
+// ══════════════════════════════════════════════════════════════
+function openAddModal() {
+  STATE.editingId = null;
+  document.getElementById('modal-table-title').textContent = 'Nouvelle table';
+  document.getElementById('modal-save-btn').textContent = 'Ajouter';
+  ['f-name','f-desc','f-desc-long','f-owner','f-sp','f-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-domain').value = CONFIG.DOMAINS[0];
+  document.getElementById('f-rel').value = 'En validation';
+  document.getElementById('f-freq').value = '';
+  document.getElementById('col-rows').innerHTML = '';
+  addColRow();
+  openModal('modal-table');
+}
+
+function openEditModal(id) {
+  STATE.editingId = id;
+  const t = STATE.tables.find(t=>t.id===id);
+  const cols = STATE.columns.filter(c=>c.TableId===id);
+  document.getElementById('modal-table-title').textContent = 'Modifier ' + t.Title;
+  document.getElementById('modal-save-btn').textContent = 'Enregistrer';
+  document.getElementById('f-name').value = t.Title;
+  document.getElementById('f-desc').value = t.Description || '';
+  document.getElementById('f-desc-long').value = t.DescriptionLongue || '';
+  document.getElementById('f-domain').value = t.Domain || t.Domaine;
+  document.getElementById('f-rel').value = t.Fiabilite;
+  document.getElementById('f-owner').value = t.Proprietaire || '';
+  document.getElementById('f-freq').value = t.Frequence || '';
+  document.getElementById('f-source').value = t.Source || '';
+  document.getElementById('f-sp').value = t.LienSharePoint || '';
+  document.getElementById('f-note').value = '';
+  document.getElementById('col-rows').innerHTML = '';
+  cols.forEach(c => addColRow(c));
+  if (!cols.length) addColRow();
+  openModal('modal-table');
+}
+
+function addColRow(col = {}) {
+  const typeOpts = CONFIG.COLUMN_TYPES.map(t=>`<option${col.DataType===t?' selected':''}>${t}</option>`).join('');
+  const div = document.createElement('div'); div.className = 'col-editor-row';
+  div.innerHTML = `
+    <input type="text" placeholder="NOM_COL" value="${col.ColumnName||''}" class="cr-name">
+    <select class="cr-type">${typeOpts}</select>
+    <select class="cr-key">
+      <option value="">—</option>
+      <option${col.KeyType==='PK'?' selected':''}>PK</option>
+      <option${col.KeyType==='FK'?' selected':''}>FK</option>
+    </select>
+    <input type="text" placeholder="Description de la variable" value="${col.Description||''}" class="cr-desc">
+    <button class="col-del" onclick="this.closest('.col-editor-row').remove()" title="Supprimer">✕</button>`;
+  document.getElementById('col-rows').appendChild(div);
+}
+
+async function saveTable() {
+  if (!STATE.isAdmin) return;
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('Nom de la table requis'); return; }
+  const note = document.getElementById('f-note').value.trim();
+  const today = new Date().toISOString().split('T')[0];
+
+  const colRows = document.querySelectorAll('.col-editor-row');
+  const newCols = Array.from(colRows).map(r => ({
+    ColumnName: r.querySelector('.cr-name').value.trim(),
+    DataType: r.querySelector('.cr-type').value,
+    KeyType: r.querySelector('.cr-key').value,
+    Description: r.querySelector('.cr-desc').value.trim()
+  })).filter(c => c.ColumnName);
+
+  const tableData = {
+    Title: name, Domain: document.getElementById('f-domain').value,
+    Description: document.getElementById('f-desc').value.trim(),
+    DescriptionLong: document.getElementById('f-desc-long').value.trim(),
+    Reliability: document.getElementById('f-rel').value,
+    Owner: document.getElementById('f-owner').value.trim(),
+    Frequency: document.getElementById('f-freq').value,
+    Source: document.getElementById('f-source').value.trim(),
+    Sharepoint: document.getElementById('f-sp').value.trim()
+  };
+  // Noms des colonnes SharePoint en français
+  const tableDataSP = {
+    Titre: tableData.Title,
+    Domaine: tableData.Domain,
+    Description: tableData.Description,
+    DescriptionLongue: tableData.DescriptionLong,
+    Fiabilite: tableData.Reliability,
+    Proprietaire: tableData.Owner,
+    Frequence: tableData.Frequency,
+    Source: tableData.Source,
+    LienSharePoint: tableData.Sharepoint
+  };
+
+  closeModal('modal-table');
+  setLoader('Enregistrement...');
+
+  try {
+    if (STATE.sharepointMode) {
+      if (STATE.editingId) {
+        await spPatch(CONFIG.LIST_TABLES, STATE.editingId, tableDataSP);
+        const oldCols = STATE.columns.filter(c=>c.TableId===STATE.editingId);
+        for (const oc of oldCols) await spDelete(CONFIG.LIST_COLUMNS, oc.id);
+        for (const nc of newCols) await spPost(CONFIG.LIST_COLUMNS, { NomColonne: nc.ColumnName, TypeDonnee: nc.DataType, TypeCle: nc.KeyType, Description: nc.Description, IdTable: parseInt(STATE.editingId) });
+        if (note) await spPost(CONFIG.LIST_HISTORY, { IdTable: parseInt(STATE.editingId), DateModification: today, Note: note });
+        await loadFromSharePoint();
+      } else {
+        const created = await spPost(CONFIG.LIST_TABLES, { ...tableDataSP, NombreUsages: 0 });
+        const newId = String(created.Id);
+        for (const nc of newCols) await spPost(CONFIG.LIST_COLUMNS, { NomColonne: nc.ColumnName, TypeDonnee: nc.DataType, TypeCle: nc.KeyType, Description: nc.Description, IdTable: parseInt(newId) });
+        await spPost(CONFIG.LIST_HISTORY, { IdTable: parseInt(newId), DateModification: today, Note: note || 'Création de la table' });
+        await loadFromSharePoint();
+      }
+    } else {
+      // Mode démo
+      if (STATE.editingId) {
+        const idx = STATE.tables.findIndex(t=>t.id===STATE.editingId);
+        STATE.tables[idx] = { ...STATE.tables[idx], ...tableData };
+        STATE.columns = STATE.columns.filter(c=>c.TableId!==STATE.editingId);
+        newCols.forEach((c,i) => STATE.columns.push({id:`c_new_${i}`,TableId:STATE.editingId,...c}));
+        if (note) STATE.history.unshift({TableId:STATE.editingId,Date:today,Note:note});
+      } else {
+        const newId = 't_' + Date.now();
+        STATE.tables.push({ id: newId, ...tableData, Usage: 0 });
+        newCols.forEach((c,i) => STATE.columns.push({id:`c_n_${i}`,TableId:newId,...c}));
+        STATE.history.unshift({TableId:newId,Date:today,Note:note||'Création de la table'});
+      }
+    }
+  } catch(e) { alert('Erreur lors de l\'enregistrement : ' + e.message); }
+
+  hideLoader();
+  sim.stop();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  setTimeout(initGraph, 50);
+}
+
+// ── Suppression ──
+let deleteTargetId = null;
+function openDeleteModal(id) {
+  deleteTargetId = id;
+  const t = STATE.tables.find(t=>t.id===id);
+  document.getElementById('del-name').textContent = t.Title;
+  openModal('modal-delete');
+}
+async function confirmDelete() {
+  if (!STATE.isAdmin || !deleteTargetId) return;
+  closeModal('modal-delete'); setLoader('Suppression...');
+  try {
+    if (STATE.sharepointMode) {
+      const oldCols = STATE.columns.filter(c=>c.TableId===deleteTargetId);
+      for (const c of oldCols) await spDelete(CONFIG.LIST_COLUMNS, c.id);
+      await spDelete(CONFIG.LIST_TABLES, deleteTargetId);
+      await loadFromSharePoint();
+    } else {
+      STATE.tables = STATE.tables.filter(t=>t.id!==deleteTargetId);
+      STATE.columns = STATE.columns.filter(c=>c.TableId!==deleteTargetId);
+      STATE.history = STATE.history.filter(h=>h.TableId!==deleteTargetId);
+    }
+    STATE.selectedId = null;
+    document.getElementById('panel').innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/></svg><span>Table supprimée</span></div>`;
+  } catch(e) { alert('Erreur suppression : ' + e.message); }
+  hideLoader(); setTimeout(initGraph, 50); deleteTargetId = null;
+}
+
+// ── Utils modals ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let _resizeTimer;
+function debouncedInitGraph() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if(sim){ sim.stop(); initGraph(); } }, 120);
+}
+window.addEventListener('resize', debouncedInitGraph);
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(debouncedInitGraph).observe(document.getElementById('graph-wrap'));
+}
+window.onload = init;
+</script>
+</body>
+</html>
