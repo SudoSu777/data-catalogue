@@ -1,1 +1,9 @@
-
+Id,Titre,Domaine,Description,DescriptionLongue,Fiabilite,Proprietaire,Frequence,Source,LienSharePoint,NombreUsages
+1,FACT_PRESTATIONS,Prestation,Table de faits des prestations servies aux assurés,"Contient l'ensemble des prestations versées (maladie, maternité, invalidité) agrégées au mois. Alimentée depuis le système de gestion des prestations.",Certifiée,Équipe Data Actuariat,Mensuelle,Système Prestations,,45
+2,DIM_ASSURE,Prestation,Référentiel des assurés actifs et inactifs,"Dimension assurés issue du fichier adhérents. Contient les informations d'identification et d'affiliation. Mise à jour quotidienne.",Certifiée,Équipe Affiliation,Quotidienne,Fichier Adhérents,,38
+3,FACT_COTISATIONS,Cotisations,Table de faits des cotisations perçues,"Cotisations collectées par période et par catégorie d'assuré. Source : système de recouvrement.",En validation,Équipe Comptabilité,Mensuelle,Système Recouvrement,,22
+4,DIM_DATE,Cotisations,Calendrier fiscal et grégorien,"Table de dates statique couvrant 2010-2030. Référence pour tous les faits temporels.",Certifiée,Équipe Data Platform,Annuelle,Génération automatique,,87
+5,FACT_RECOUVREMENT,Recouvrement,Suivi des créances et recouvrements,"Données de recouvrement des cotisations impayées par employeur et période.",En validation,Équipe Recouvrement,Mensuelle,Système Recouvrement,,18
+6,DIM_EMPLOYEUR,Recouvrement,Référentiel des employeurs affiliés,"Dimension employeurs avec informations SIRET, secteur d'activité et effectifs déclarés.",Non vérifiée,Non assigné,Manuelle,Import manuel,,8
+7,FACT_SALARIES,Salariés,Données salariales et effectifs par période,"Masse salariale et effectifs déclarés par les employeurs. Utilisé pour le calcul des cotisations théoriques.",Certifiée,Équipe Data RH,Mensuelle,DSN (Déclaration Sociale),,31
+8,AGG_PRESTATIONS_MENS,Prestation,Agrégation mensuelle des prestations par type,"Table agrégée pour le reporting mensuel. Calculée depuis FACT_PRESTATIONS.",Certifiée,Équipe Data Actuariat,Mensuelle,Calculée depuis FACT_PRESTATIONS,,52
