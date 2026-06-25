@@ -1,0 +1,14 @@
+IdTable,DateModification,Note
+1,2024-06-01,Ajout colonne NB_ACTES pour le suivi des actes médicaux
+1,2024-03-15,Migration vers le nouveau schéma v2
+1,2023-11-20,Création initiale de la table
+2,2024-05-20,Ajout champ CATEGORIE (Actif/Retraité/Ayant-droit)
+2,2024-01-10,Nettoyage des doublons de matricules
+3,2024-05-30,Livraison initiale — en cours de validation comptable
+3,2024-04-01,Première extraction depuis système recouvrement
+4,2024-01-01,Extension de la table jusqu'en 2030
+5,2024-05-01,Intégration des cas en contentieux
+6,2024-02-01,Import manuel depuis le registre employeurs
+7,2024-04-15,Connexion à la DSN (Déclaration Sociale Nominative)
+8,2024-06-01,Recalcul Q1-Q2 suite à correction FACT_PRESTATIONS
+8,2024-01-15,Création pour le reporting mensuel direction

@@ -10,17 +10,19 @@
      ============================================================ -->
 <script>
 const CONFIG = {
-  // URL de base de votre site SharePoint
-  // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
+  // ── Source des données ──────────────────────────────────────
+  // "csv"        → lit les fichiers CSV depuis DATA_BASE_URL (GitHub)
+  // "sharepoint" → lit les listes SharePoint (nécessite droits admin SP)
+  DATA_SOURCE: "csv",
+
+  // URL de base du dossier data/ sur GitHub (raw)
+  // Format: "https://raw.githubusercontent.com/USER/REPO/main/data"
+  DATA_BASE_URL: "https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data",
+
+  // ── Configuration SharePoint (ignorée si DATA_SOURCE = "csv") ──
   SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
-
-  // Nom exact de la Liste SharePoint qui stocke les tables du catalogue
   LIST_TABLES: "CatalogueTables",
-
-  // Nom exact de la Liste SharePoint qui stocke les colonnes de chaque table
   LIST_COLUMNS: "CatalogueColonnes",
-
-  // Nom exact de la Liste SharePoint qui stocke l'historique des modifications
   LIST_HISTORY: "CatalogueHistorique",
 
   // Emails des administrateurs du catalogue (accès complet : ajout / modification / suppression)
@@ -631,19 +633,30 @@ async function init() {
   CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
 
   try {
-    const user = await getCurrentUser();
-    STATE.currentUser = user;
-    STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
-    document.getElementById('user-name').textContent = user.Title || user.Email;
-    if (STATE.isAdmin) {
-      document.getElementById('admin-badge').style.display = 'inline';
-      document.getElementById('admin-tools').style.display = 'flex';
+    if (CONFIG.DATA_SOURCE === 'csv') {
+      // Mode CSV — pas d'authentification SP nécessaire
+      document.getElementById('user-name').textContent = 'Data Catalogue';
+      // En mode CSV, seuls les admins déclarés voient les outils d'édition
+      // (l'édition CSV se fait directement sur GitHub)
+      STATE.isAdmin = false;
+      document.getElementById('admin-tools').style.display = 'none';
+      setLoader('Chargement des données...');
+      await loadFromCSV();
+    } else {
+      const user = await getCurrentUser();
+      STATE.currentUser = user;
+      STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
+      document.getElementById('user-name').textContent = user.Title || user.Email;
+      if (STATE.isAdmin) {
+        document.getElementById('admin-badge').style.display = 'inline';
+        document.getElementById('admin-tools').style.display = 'flex';
+      }
+      STATE.sharepointMode = true;
+      setLoader('Chargement du catalogue...');
+      await loadFromSharePoint();
     }
-    STATE.sharepointMode = true;
-    setLoader('Chargement du catalogue...');
-    await loadFromSharePoint();
   } catch(e) {
-    const isOnSP = window.location.hostname.includes('sharepoint.com');
+    const isOnSP = CONFIG.DATA_SOURCE !== 'csv' && window.location.hostname.includes('sharepoint.com');
     const errMsg = e.message || '';
     
     if (errMsg.startsWith('LIST_NOT_FOUND:')) {
@@ -682,13 +695,78 @@ async function init() {
   }, 50);
 }
 
+// ── CSV parser ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    // Handle quoted fields with commas inside
+    const fields = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQuote = !inQuote; }
+      else if (c === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (fields[i] || '').replace(/^"|"$/g, ''); });
+    return obj;
+  });
+}
+
+async function fetchCSV(filename) {
+  const url = `${CONFIG.DATA_BASE_URL}/${filename}?_=${Date.now()}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`CSV_NOT_FOUND:${filename}`);
+  return parseCSV(await r.text());
+}
+
+async function loadFromCSV() {
+  const [tablesRaw, colsRaw, histRaw] = await Promise.all([
+    fetchCSV('tables.csv'),
+    fetchCSV('colonnes.csv'),
+    fetchCSV('historique.csv').catch(() => [])
+  ]);
+
+  STATE.tables = tablesRaw.map((t, i) => ({
+    id: t.Id || String(i + 1),
+    Title: t.Titre || t.Title || t.NomTable || '',
+    Domain: t.Domaine || t.Domain || '',
+    Description: t.Description || '',
+    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
+    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
+    Owner: t.Proprietaire || t.Owner || '',
+    Frequency: t.Frequence || t.Frequency || '',
+    Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
+    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
+  }));
+
+  STATE.columns = colsRaw.map((c, i) => ({
+    id: String(i + 1),
+    TableId: c.IdTable || c.TableId || '',
+    ColumnName: c.NomColonne || c.ColumnName || '',
+    DataType: c.TypeDonnee || c.DataType || '',
+    KeyType: c.TypeCle || c.KeyType || '',
+    Description: c.Description || ''
+  }));
+
+  STATE.history = histRaw.map(h => ({
+    TableId: h.IdTable || h.TableId || '',
+    Date: h.DateModification || h.Date || '',
+    Note: h.Note || ''
+  }));
+}
+
 async function loadFromSharePoint() {
   const [tables, cols, hist] = await Promise.all([
     spGet(CONFIG.LIST_TABLES),
     spGet(CONFIG.LIST_COLUMNS),
     spGet(CONFIG.LIST_HISTORY)
   ]);
-  // Hide any previous error
   document.getElementById('status-bar').style.display = 'none';
   STATE.tables = tables.map(t => ({
     id: String(t.Id), Title: t.Titre, Domain: t.Domaine, Description: t.Description,
