@@ -10,17 +10,19 @@
      ============================================================ -->
 <script>
 const CONFIG = {
-  // URL de base de votre site SharePoint
-  // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
+  // ── Source des données ──────────────────────────────────────
+  // "csv"        → lit les fichiers CSV depuis DATA_BASE_URL (GitHub)
+  // "sharepoint" → lit les listes SharePoint (nécessite droits admin SP)
+  DATA_SOURCE: "csv",
+
+  // URL de base du dossier data/ sur GitHub (raw)
+  // Format: "https://raw.githubusercontent.com/USER/REPO/main/data"
+  DATA_BASE_URL: "https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data",
+
+  // ── Configuration SharePoint (ignorée si DATA_SOURCE = "csv") ──
   SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
-
-  // Nom exact de la Liste SharePoint qui stocke les tables du catalogue
   LIST_TABLES: "CatalogueTables",
-
-  // Nom exact de la Liste SharePoint qui stocke les colonnes de chaque table
   LIST_COLUMNS: "CatalogueColonnes",
-
-  // Nom exact de la Liste SharePoint qui stocke l'historique des modifications
   LIST_HISTORY: "CatalogueHistorique",
 
   // Emails des administrateurs du catalogue (accès complet : ajout / modification / suppression)
@@ -283,15 +285,9 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
         <span class="chip-rel" data-v="En validation" onclick="setReliability(this)">◑ En validation</span>
         <span class="chip-rel" data-v="Non vérifiée" onclick="setReliability(this)">○ Non vérifiée</span>
       </div>
-      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-        <button class="btn btn-sm" style="background:#1D9E75;color:#EAF3DE;border-color:#1D9E75;gap:5px" onclick="openRAG()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Assistant RAG
-        </button>
-        <div id="admin-tools" style="display:none;gap:6px">
-          <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
-          <button class="btn btn-sm" onclick="refreshData()">↻ Actualiser</button>
-        </div>
+      <div id="admin-tools" style="display:none;margin-left:auto">
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
+        <button class="btn btn-sm" onclick="refreshData()" title="Recharger depuis SharePoint">↻ Actualiser</button>
       </div>
   </div>
 
@@ -398,65 +394,6 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
   </div>
 </div>
 
-<!-- Modal RAG -->
-<div class="overlay" id="modal-rag">
-  <div class="modal" style="width:700px;max-height:88vh;overflow-y:auto">
-    <div class="modal-title">
-      <span>🔍 Assistant Data — Recherche en langage naturel</span>
-      <button class="close-btn" onclick="closeModal('modal-rag')">✕</button>
-    </div>
-    <div style="display:flex;gap:8px;align-items:center;padding:8px 0 12px;border-bottom:0.5px solid var(--border);margin-bottom:12px">
-      <label style="font-size:11px;color:var(--text2);white-space:nowrap">Modèle :</label>
-      <select id="rag-model" style="font-size:11px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);flex:1">
-        <option value="local">Analyse locale (sans LLM — immédiat)</option>
-        <option value="claude">Claude API (clé requise)</option>
-        <option value="ollama">Ollama local (serveur requis)</option>
-      </select>
-      <input id="rag-key" placeholder="sk-ant-..." style="font-size:11px;padding:4px 8px;width:200px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);display:none">
-      <input id="rag-ollama-url" placeholder="http://localhost:11434" style="font-size:11px;padding:4px 8px;width:200px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);display:none">
-    </div>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <textarea id="rag-question" placeholder="Exemple : Je veux le nombre de salariés, d'employeurs, le montant total de cotisations et de prestations..." style="flex:1;min-height:68px;font-size:12px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);resize:vertical;font-family:var(--font)"></textarea>
-      <button class="btn btn-primary" onclick="runRAG()" style="align-self:flex-end">▶ Analyser</button>
-    </div>
-    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
-      <span style="font-size:10px;color:var(--text3);align-self:center">Suggestions :</span>
-      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Nombre de salariés et employeurs</button>
-      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Total cotisations vs prestations</button>
-      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Tables pour le suivi recouvrement</button>
-      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Tables certifiées domaine Prestation</button>
-    </div>
-    <div id="rag-loader" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:12px">
-      <div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:#534AB7;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>
-      Analyse en cours...
-    </div>
-    <div id="rag-result" style="display:none;border:0.5px solid var(--border);border-radius:var(--r-md);overflow:hidden">
-      <div style="padding:12px;border-bottom:0.5px solid var(--border)">
-        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tables identifiées</div>
-        <div id="rag-tables" style="display:flex;flex-wrap:wrap;gap:6px"></div>
-      </div>
-      <div style="padding:12px;border-bottom:0.5px solid var(--border);background:var(--bg2)">
-        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Analyse &amp; jointures</div>
-        <div id="rag-explain" style="font-size:12px;line-height:1.7;color:var(--text2)"></div>
-      </div>
-      <div style="padding:12px;border-bottom:0.5px solid var(--border)">
-        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Colonnes à utiliser</div>
-        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
-          <thead id="rag-cols-head"></thead><tbody id="rag-cols-body"></tbody>
-        </table></div>
-      </div>
-      <div style="padding:12px;display:flex;gap:8px;align-items:center">
-        <button class="btn btn-primary" onclick="exportRAGCSV()" style="gap:5px">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Télécharger rapport CSV
-        </button>
-        <button class="btn" onclick="document.getElementById('rag-result').style.display='none'">↩ Nouvelle question</button>
-        <span id="rag-status" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal Confirmation suppression -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:360px">
@@ -486,10 +423,15 @@ let STATE = {
   sharepointMode: false   // passe à true si la connexion SP réussit
 };
 
-const DOMAIN_COLORS = {
-  Finance: '#534AB7', RH: '#1D9E75', Clients: '#D85A30',
-  Référentiel: '#378ADD', Risques: '#D4537E', IT: '#BA7517'
-};
+// Palette de couleurs — s'adapte automatiquement aux domaines du CONFIG
+const COLOR_PALETTE = [
+  '#534AB7','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517',
+  '#7B5EA7','#2E8B8B','#C44D38','#4A7AB5','#A0522D','#6B8E23'
+];
+const DOMAIN_COLORS = {};
+CONFIG.DOMAINS.forEach((d, i) => {
+  DOMAIN_COLORS[d] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+});
 const REL_CONFIG = {
   Certifiée:        { cls: 'pill-green', dot: '●', label: '✓ Certifiée' },
   'En validation':  { cls: 'pill-amber', dot: '◑', label: '◑ En validation' },
@@ -560,7 +502,62 @@ const DEMO_HISTORY = [
 // ══════════════════════════════════════════════════════════════
 //  SHAREPOINT API
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  BRIDGE postMessage — communication iframe ↔ page hôte SP
+// ══════════════════════════════════════════════════════════════
+let _pendingRequests = {};
+let _bridgeReady = false;
+let _bridgeQueue = [];
+let _msgId = 0;
+
+function isBridgeMode() {
+  try { return window.self !== window.top; } catch(e) { return true; }
+}
+
+// Envoyer une requête à la page hôte et attendre la réponse
+function bridgeCall(action, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++_msgId;
+    const timeout = setTimeout(() => {
+      delete _pendingRequests[id];
+      reject(new Error('BRIDGE_TIMEOUT:' + action));
+    }, 15000);
+    _pendingRequests[id] = { resolve, reject, timeout };
+    const msg = { type: 'SP_REQUEST', id, action, payload };
+    if (_bridgeReady) {
+      window.parent.postMessage(msg, 'https://cicnps.sharepoint.com');
+    } else {
+      _bridgeQueue.push(msg);
+    }
+  });
+}
+
+// Recevoir les réponses de la page hôte
+window.addEventListener('message', e => {
+  if (!e.origin.includes('sharepoint.com') && !e.origin.includes('github.io')) return;
+  const d = e.data;
+  if (d.type === 'SP_READY') {
+    _bridgeReady = true;
+    _bridgeQueue.forEach(m => window.parent.postMessage(m, 'https://cicnps.sharepoint.com'));
+    _bridgeQueue = [];
+    return;
+  }
+  if (d.type === 'SP_USER') {
+    window._spUser = d.user;
+    return;
+  }
+  if (d.type === 'SP_RESPONSE' && _pendingRequests[d.id]) {
+    const req = _pendingRequests[d.id];
+    clearTimeout(req.timeout);
+    delete _pendingRequests[d.id];
+    if (d.error) req.reject(new Error(d.error));
+    else req.resolve(d.result);
+  }
+});
+
+// API SP via bridge (iframe) ou directe (même domaine)
 async function spGet(list) {
+  if (isBridgeMode()) return bridgeCall('GET', { list });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=500`;
   const r = await fetch(url, { headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() } });
   if (r.status === 404) throw new Error(`LIST_NOT_FOUND:${list}`);
@@ -570,6 +567,7 @@ async function spGet(list) {
   return d.d.results;
 }
 async function spPost(list, body) {
+  if (isBridgeMode()) return bridgeCall('POST', { list, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`;
   const r = await fetch(url, {
     method: 'POST',
@@ -580,6 +578,7 @@ async function spPost(list, body) {
   return (await r.json()).d;
 }
 async function spPatch(list, id, body) {
+  if (isBridgeMode()) return bridgeCall('PATCH', { list, id, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, {
     method: 'POST',
@@ -588,6 +587,7 @@ async function spPatch(list, id, body) {
   });
 }
 async function spDelete(list, id) {
+  if (isBridgeMode()) return bridgeCall('DELETE', { list, id });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*' } });
 }
@@ -601,6 +601,19 @@ async function getDigest() {
   return _digest;
 }
 async function getCurrentUser() {
+  if (isBridgeMode()) {
+    // Attendre que la page hôte envoie l'utilisateur
+    return new Promise((resolve, reject) => {
+      if (window._spUser) { resolve(window._spUser); return; }
+      const t = setTimeout(() => reject(new Error('USER_TIMEOUT')), 10000);
+      const check = setInterval(() => {
+        if (window._spUser) {
+          clearInterval(check); clearTimeout(t);
+          resolve(window._spUser);
+        }
+      }, 100);
+    });
+  }
   const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/web/currentuser`, { headers: { Accept: 'application/json;odata=verbose' } });
   const d = await r.json();
   return d.d;
@@ -625,19 +638,30 @@ async function init() {
   CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
 
   try {
-    const user = await getCurrentUser();
-    STATE.currentUser = user;
-    STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
-    document.getElementById('user-name').textContent = user.Title || user.Email;
-    if (STATE.isAdmin) {
-      document.getElementById('admin-badge').style.display = 'inline';
-      document.getElementById('admin-tools').style.display = 'flex';
+    if (CONFIG.DATA_SOURCE === 'csv') {
+      // Mode CSV — pas d'authentification SP nécessaire
+      document.getElementById('user-name').textContent = 'Data Catalogue';
+      // En mode CSV, seuls les admins déclarés voient les outils d'édition
+      // (l'édition CSV se fait directement sur GitHub)
+      STATE.isAdmin = false;
+      document.getElementById('admin-tools').style.display = 'none';
+      setLoader('Chargement des données...');
+      await loadFromCSV();
+    } else {
+      const user = await getCurrentUser();
+      STATE.currentUser = user;
+      STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
+      document.getElementById('user-name').textContent = user.Title || user.Email;
+      if (STATE.isAdmin) {
+        document.getElementById('admin-badge').style.display = 'inline';
+        document.getElementById('admin-tools').style.display = 'flex';
+      }
+      STATE.sharepointMode = true;
+      setLoader('Chargement du catalogue...');
+      await loadFromSharePoint();
     }
-    STATE.sharepointMode = true;
-    setLoader('Chargement du catalogue...');
-    await loadFromSharePoint();
   } catch(e) {
-    const isOnSP = window.location.hostname.includes('sharepoint.com');
+    const isOnSP = CONFIG.DATA_SOURCE !== 'csv' && window.location.hostname.includes('sharepoint.com');
     const errMsg = e.message || '';
     
     if (errMsg.startsWith('LIST_NOT_FOUND:')) {
@@ -665,15 +689,82 @@ async function init() {
     }
   }
 
+  loadPersistedUsage();
   hideLoader();
   // Small delay to ensure DOM is rendered before canvas sizing
   setTimeout(() => {
     initGraph();
-    // If SP connected but no tables yet, show a helpful message
-    if (STATE.sharepointMode && STATE.tables.length === 0) {
+    // If connected but no tables yet, show a helpful message
+    if (STATE.tables.length === 0) {
       showEmptyState();
     }
   }, 50);
+}
+
+// ── CSV parser ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    // Handle quoted fields with commas inside
+    const fields = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQuote = !inQuote; }
+      else if (c === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (fields[i] || '').replace(/^"|"$/g, ''); });
+    return obj;
+  });
+}
+
+async function fetchCSV(filename) {
+  const url = `${CONFIG.DATA_BASE_URL}/${filename}?_=${Date.now()}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`CSV_NOT_FOUND:${filename}`);
+  return parseCSV(await r.text());
+}
+
+async function loadFromCSV() {
+  const [tablesRaw, colsRaw, histRaw] = await Promise.all([
+    fetchCSV('tables.csv'),
+    fetchCSV('colonnes.csv'),
+    fetchCSV('historique.csv').catch(() => [])
+  ]);
+
+  STATE.tables = tablesRaw.map((t, i) => ({
+    id: t.Id || String(i + 1),
+    Title: t.Titre || t.Title || t.NomTable || '',
+    Domain: t.Domaine || t.Domain || '',
+    Description: t.Description || '',
+    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
+    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
+    Owner: t.Proprietaire || t.Owner || '',
+    Frequency: t.Frequence || t.Frequency || '',
+    Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
+    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
+  }));
+
+  STATE.columns = colsRaw.map((c, i) => ({
+    id: String(i + 1),
+    TableId: c.IdTable || c.TableId || '',
+    ColumnName: c.NomColonne || c.ColumnName || '',
+    DataType: c.TypeDonnee || c.DataType || '',
+    KeyType: c.TypeCle || c.KeyType || '',
+    Description: c.Description || ''
+  }));
+
+  STATE.history = histRaw.map(h => ({
+    TableId: h.IdTable || h.TableId || '',
+    Date: h.DateModification || h.Date || '',
+    Note: h.Note || ''
+  }));
 }
 
 async function loadFromSharePoint() {
@@ -682,7 +773,6 @@ async function loadFromSharePoint() {
     spGet(CONFIG.LIST_COLUMNS),
     spGet(CONFIG.LIST_HISTORY)
   ]);
-  // Hide any previous error
   document.getElementById('status-bar').style.display = 'none';
   STATE.tables = tables.map(t => ({
     id: String(t.Id), Title: t.Titre, Domain: t.Domaine, Description: t.Description,
@@ -757,6 +847,59 @@ function buildLinks() {
     }
   });
   return links;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COMPTEUR D'USAGE PERSISTANT (localStorage — une fois par jour)
+// ══════════════════════════════════════════════════════════════
+const USAGE_KEY = 'dc_usage_counts';
+const USAGE_DATE_KEY = 'dc_usage_dates';
+
+function loadPersistedUsage() {
+  try {
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    // Appliquer les compteurs persistés aux tables
+    STATE.tables.forEach(t => {
+      if (counts[t.id] !== undefined) {
+        t.Usage = Math.max(t.Usage || 0, counts[t.id]);
+        const gn = gNodes && gNodes.find(n => n.id === t.id);
+        if (gn) gn.Usage = t.Usage;
+      }
+    });
+  } catch(e) {}
+}
+
+function incrementUsage(node) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const dates = JSON.parse(localStorage.getItem(USAGE_DATE_KEY) || '{}');
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+
+    // Vérifier si déjà consulté aujourd'hui
+    if (dates[node.id] === today) {
+      // Déjà compté aujourd'hui — juste sélectionner sans incrémenter
+      return;
+    }
+
+    // Incrémenter
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+
+    // Persister
+    dates[node.id] = today;
+    counts[node.id] = node.Usage;
+    localStorage.setItem(USAGE_DATE_KEY, JSON.stringify(dates));
+    localStorage.setItem(USAGE_KEY, JSON.stringify(counts));
+
+    // Sync SharePoint si connecté
+    if (STATE.sharepointMode) {
+      spPatch(CONFIG.LIST_TABLES, node.id, { NombreUsages: node.Usage }).catch(() => {});
+    }
+  } catch(e) {
+    // localStorage indisponible — incrémenter en mémoire seulement
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+  }
 }
 
 function initGraph() {
@@ -907,9 +1050,8 @@ function setupCanvasEvents(canvas, W, H) {
     const [mx, my] = toWorld(e, canvas);
     const n = hitTest(mx, my);
     if (n && visible(n)) {
-      n.Usage = Math.min((n.Usage||0)+1, 99);
-      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
-      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      // Incrémenter seulement une fois par jour par table
+      incrementUsage(n);
       STATE.selectedId = n.id;
       renderPanel(n);
     }
@@ -1038,8 +1180,8 @@ function renderPanel(node) {
     <div class="action-row">
       ${node.Sharepoint ? `<button class="btn btn-primary" onclick="window.open('${node.Sharepoint}','_blank')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        SharePoint
-      </button>` : ''}
+        Accès SharePoint
+      </button>` : '<span style="font-size:11px;color:var(--text3);padding:4px 0">Aucun lien SharePoint renseigné</span>'}
       <button class="btn" onclick="exportTable('${node.id}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exporter JSON
@@ -1246,177 +1388,6 @@ window.addEventListener('resize', debouncedInitGraph);
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debouncedInitGraph).observe(document.getElementById('graph-wrap'));
 }
-
-// ══════════════════════════════════════════════════════════════
-//  MODULE RAG
-// ══════════════════════════════════════════════════════════════
-let _ragResult = null;
-
-document.addEventListener('change', e => {
-  if (e.target.id !== 'rag-model') return;
-  document.getElementById('rag-key').style.display = e.target.value === 'claude' ? 'block' : 'none';
-  document.getElementById('rag-ollama-url').style.display = e.target.value === 'ollama' ? 'block' : 'none';
-});
-
-function openRAG() {
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'none';
-  document.getElementById('rag-question').value = '';
-  document.getElementById('rag-status').textContent = '';
-  openModal('modal-rag');
-}
-
-function buildContext() {
-  return STATE.tables.map(t => {
-    const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilite: ${t.Reliability} | Lien: ${t.Sharepoint||'non renseigne'}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => c.ColumnName+'('+c.DataType+(c.KeyType?','+c.KeyType:'')+'):'+( c.Description||'')).join(' | ')}`;
-  }).join('
-
-');
-}
-
-function localRAG(q) {
-  const ql = q.toLowerCase();
-  const domMap = {'salarie':['Salaries'],'employe':['Salaries'],'employeur':['Recouvrement'],'cotisation':['Cotisations'],'prestation':['Prestation'],'recouvrement':['Recouvrement'],'assure':['Prestation','Cotisations']};
-  const domSet = new Set();
-  // Map generic keywords to CONFIG domains
-  CONFIG.DOMAINS.forEach(d => { const dl = d.toLowerCase(); if (ql.includes(dl)) domSet.add(d); });
-  Object.entries(domMap).forEach(([kw,doms]) => { if(ql.includes(kw)) doms.forEach(d => { const found = CONFIG.DOMAINS.find(cd => cd.toLowerCase().includes(d.toLowerCase())); if(found) domSet.add(found); }); });
-  const words = ql.split(/\s+/).filter(w => w.length > 3);
-  const scored = STATE.tables.map(t => {
-    let s = domSet.has(t.Domain) ? 10 : 0;
-    const hay = (t.Title+' '+t.Description+' '+STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')).toLowerCase();
-    words.forEach(w => { if (hay.includes(w)) s += 2; });
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
-  const joins = [];
-  scored.forEach(t => {
-    STATE.columns.filter(c=>c.TableId===t.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==t.id);
-      if(pk){const tgt=STATE.tables.find(tt=>tt.id===pk.TableId); if(tgt&&scored.find(ss=>ss.id===tgt.id)) joins.push(`${t.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);}
-    });
-  });
-
-  const expl = scored.length===0 ? 'Aucune table correspondante trouvee dans le catalogue.'
-    : scored.length+' table(s) identifiee(s) :
-• '+scored.map(t=>t.Title+' ('+t.Domain+')').join('
-• ')
-      +(joins.length?'
-
-Jointures detectees :
-• '+[...new Set(joins)].join('
-• '):'')
-      +'
-
-(Analyse locale — pour des explications detaillees, activez Claude API ou Ollama local)';
-
-  return {
-    tables: scored.map(t=>t.Title),
-    explication: expl,
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).map(c=>({
-      table:t.Title,colonne:c.ColumnName,type:c.DataType,cle:c.KeyType||'',
-      description:c.Description||'',
-      utilisation:c.KeyType==='PK'?'Cle primaire — jointure':c.KeyType==='FK'?'Cle etrangere — jointure':'Valeur a agreger ou filtrer'
-    }))),
-    liens:(scored.map(t=>t.Sharepoint).filter(Boolean))
-  };
-}
-
-async function callLLM(q) {
-  const model = document.getElementById('rag-model').value;
-  const sys = 'Tu es un expert data pour un organisme de securite sociale.
-Catalogue:
-'+buildContext()+'
-
-Reponds UNIQUEMENT en JSON:
-{"tables":["NomTable"],"explication":"...","colonnes":[{"table":"","colonne":"","type":"","cle":"","description":"","utilisation":""}],"liens":["url"]}';
-  if (model==='claude') {
-    const key = document.getElementById('rag-key').value.trim();
-    if (!key) throw new Error('Cle API Claude requise');
-    const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:sys,messages:[{role:'user',content:q}]})});
-    const d = await r.json();
-    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-  } else {
-    const url = document.getElementById('rag-ollama-url').value||'http://localhost:11434';
-    const r = await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'mistral',stream:false,format:'json',prompt:sys+'
-
-Question: '+q})});
-    const d = await r.json();
-    return JSON.parse(d.response||'{}');
-  }
-}
-
-async function runRAG() {
-  const q = document.getElementById('rag-question').value.trim();
-  if (!q) return;
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'block';
-  document.getElementById('rag-status').textContent = '';
-  try {
-    const model = document.getElementById('rag-model').value;
-    let result;
-    if (model==='local') { result = localRAG(q); }
-    else { try { result = await callLLM(q); } catch(e) { result = localRAG(q); document.getElementById('rag-status').textContent = '⚠ Analyse locale (LLM indisponible : '+e.message+')'; } }
-    _ragResult = {question:q,...result};
-    renderRAGResult(result);
-  } catch(e) { document.getElementById('rag-loader').style.display='none'; document.getElementById('rag-status').textContent='❌ '+e.message; }
-}
-
-function renderRAGResult(r) {
-  document.getElementById('rag-loader').style.display='none';
-  document.getElementById('rag-result').style.display='block';
-  document.getElementById('rag-tables').innerHTML=(r.tables||[]).map(name=>{
-    const t=STATE.tables.find(t=>t.Title===name);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const sp=t&&t.Sharepoint?'onclick="window.open(''+t.Sharepoint+'','_blank')" style="cursor:pointer"':'';
-    return '<span '+sp+' style="display:inline-flex;align-items:center;gap:5px;background:'+col+'18;border:0.5px solid '+col+';border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:500;color:'+col+'"><span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'+name+'</span>';
-  }).join('');
-  document.getElementById('rag-explain').innerHTML=(r.explication||'').replace(/
-/g,'<br>');
-  document.getElementById('rag-cols-head').innerHTML='<tr>'+['Table','Colonne','Type','Cle','Description','Utilisation'].map(h=>'<th style="background:var(--bg3);padding:5px 8px;text-align:left;font-size:10px;font-weight:500;color:var(--text3);border:0.5px solid var(--border);white-space:nowrap">'+h+'</th>').join('')+'</tr>';
-  document.getElementById('rag-cols-body').innerHTML=(r.colonnes||[]).map((c,i)=>{
-    const t=STATE.tables.find(t=>t.Title===c.table);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const bg=i%2===0?'var(--bg)':'var(--bg2)';
-    const kb=c.cle?'<span style="background:var(--purple-light);color:var(--purple);padding:1px 5px;border-radius:3px;font-size:9px;font-family:monospace">'+c.cle+'</span>':'';
-    return '<tr style="background:'+bg+'"><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;font-weight:500;color:'+col+'">'+c.table+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-family:monospace;font-size:10px;color:var(--purple)">'+c.colonne+'</td><td style="padding:5px 8px;border:0.5px solid var(--border)"><span style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:10px">'+c.type+'</span></td><td style="padding:5px 8px;border:0.5px solid var(--border)">'+kb+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.description||'—')+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.utilisation||'—')+'</td></tr>';
-  }).join('');
-}
-
-function exportRAGCSV() {
-  if (!_ragResult) return;
-  const r = _ragResult;
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE — ASSISTANT RAG
-';
-  csv += 'Question,"'+r.question+'"
-
-TABLES IDENTIFIEES
-Table,Domaine,Fiabilite,Lien SharePoint
-';
-  (r.tables||[]).forEach(n=>{const t=STATE.tables.find(t=>t.Title===n);if(t)csv+='"'+t.Title+'","'+t.Domain+'","'+t.Reliability+'","'+(t.Sharepoint||'')+'"
-';});
-  csv += '
-ANALYSE,"'+(r.explication||'').replace(/"/g,"''").replace(/
-/g,' )+'"
-';
-  csv += '
-COLONNES
-Table,Colonne,Type,Cle,Description,Utilisation
-';
-  (r.colonnes||[]).forEach(c=>{csv+='"'+c.table+'","'+c.colonne+'","'+c.type+'","'+(c.cle||'')+'","'+(c.description||'').replace(/"/g,"''")+'","'+(c.utilisation||'').replace(/"/g,"''")+'")
-';});
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RAG_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-}
-
-
 window.onload = init;
 </script>
 </body>
