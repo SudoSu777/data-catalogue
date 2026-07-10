@@ -10,6 +10,7 @@
      ============================================================ -->
 <script>
 const CONFIG = {
+  DATA_SOURCE: "csv",  // "csv" ou "sharepoint"
   // URL de base de votre site SharePoint
   // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
   SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
@@ -610,8 +611,7 @@ async function getCurrentUser() {
 //  INIT
 // ══════════════════════════════════════════════════════════════
 async function init() {
-  setLoader('Connexion à SharePoint...');
-  // Remplir selects config
+  // ── Remplir les selects depuis CONFIG ──
   const ds = document.getElementById('domain-chips');
   CONFIG.DOMAINS.forEach(d => {
     const ch = document.createElement('span');
@@ -624,55 +624,65 @@ async function init() {
   const fr = document.getElementById('f-rel');
   CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
 
-  try {
-    const user = await getCurrentUser();
-    STATE.currentUser = user;
-    STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
-    document.getElementById('user-name').textContent = user.Title || user.Email;
-    if (STATE.isAdmin) {
-      document.getElementById('admin-badge').style.display = 'inline';
-      document.getElementById('admin-tools').style.display = 'flex';
+  // ── Branchement selon DATA_SOURCE ──
+  if (CONFIG.DATA_SOURCE === 'csv') {
+    setLoader('Chargement des données CSV...');
+    document.getElementById('user-name').textContent = 'Data Catalogue';
+    try {
+      await loadFromCSV();
+      loadPersistedUsage();
+    } catch(e) {
+      showStatusError('⚠️ Erreur CSV : ' + e.message + ' — Vérifiez que data/tables.csv existe sur GitHub');
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
     }
-    STATE.sharepointMode = true;
-    setLoader('Chargement du catalogue...');
-    await loadFromSharePoint();
-  } catch(e) {
-    const isOnSP = window.location.hostname.includes('sharepoint.com');
-    const errMsg = e.message || '';
-    
-    if (errMsg.startsWith('LIST_NOT_FOUND:')) {
-      // SP connecté mais liste introuvable
-      const listName = errMsg.split(':')[1];
-      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
-      showStatusError(`⚠️ Liste introuvable : "${listName}" — Vérifiez le nom exact dans SharePoint et dans CONFIG`);
-      // Pas de mode démo, graphe vide avec message
-      STATE.tables = []; STATE.columns = []; STATE.history = [];
-    } else if (!isOnSP || errMsg.includes('Failed to fetch') || !STATE.currentUser) {
-      // Pas sur SP ou non joignable → mode démo
-      document.getElementById('user-name').textContent = 'Mode démo';
-      STATE.tables = DEMO_TABLES;
-      STATE.columns = DEMO_COLUMNS;
-      STATE.history = DEMO_HISTORY;
-      showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
-      document.getElementById('admin-tools').style.display = 'flex';
-      STATE.isAdmin = true;
-      document.getElementById('admin-badge').style.display = 'inline';
-    } else {
-      // SP joignable mais autre erreur
-      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
-      showStatusError(`⚠️ Erreur de chargement — ${errMsg}`);
-      STATE.tables = []; STATE.columns = []; STATE.history = [];
+  } else {
+    // ── Mode SharePoint ──
+    setLoader('Connexion à SharePoint...');
+    try {
+      const user = await getCurrentUser();
+      STATE.currentUser = user;
+      STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
+      document.getElementById('user-name').textContent = user.Title || user.Email;
+      if (STATE.isAdmin) {
+        document.getElementById('admin-badge').style.display = 'inline';
+        const at = document.getElementById('admin-tools');
+        if (at) at.style.display = 'flex';
+      }
+      STATE.sharepointMode = true;
+      setLoader('Chargement du catalogue...');
+      await loadFromSharePoint();
+      loadPersistedUsage();
+    } catch(e) {
+      const isOnSP = window.location.hostname.includes('sharepoint.com');
+      const errMsg = e.message || '';
+      if (errMsg.startsWith('LIST_NOT_FOUND:')) {
+        document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+        showStatusError(`⚠️ Liste introuvable : "${errMsg.split(':')[1]}" — vérifiez le nom dans CONFIG`);
+        STATE.tables = []; STATE.columns = []; STATE.history = [];
+      } else {
+        // Fallback mode démo
+        document.getElementById('user-name').textContent = 'Mode démo';
+        STATE.tables = DEMO_TABLES;
+        STATE.columns = DEMO_COLUMNS;
+        STATE.history = DEMO_HISTORY;
+        const demoDomains = ['Finance','RH','Clients','Référentiel'];
+        STATE.tables = DEMO_TABLES.map(t => ({
+          ...t, Domain: CONFIG.DOMAINS[demoDomains.indexOf(t.Domain) % CONFIG.DOMAINS.length] || t.Domain
+        }));
+        loadPersistedUsage();
+        showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
+        const at = document.getElementById('admin-tools');
+        if (at) at.style.display = 'flex';
+        STATE.isAdmin = true;
+        document.getElementById('admin-badge').style.display = 'inline';
+      }
     }
   }
 
   hideLoader();
-  // Small delay to ensure DOM is rendered before canvas sizing
   setTimeout(() => {
     initGraph();
-    // If SP connected but no tables yet, show a helpful message
-    if (STATE.sharepointMode && STATE.tables.length === 0) {
-      showEmptyState();
-    }
+    if (STATE.tables.length === 0) showEmptyState();
   }, 50);
 }
 
