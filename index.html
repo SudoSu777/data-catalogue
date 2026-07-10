@@ -738,6 +738,79 @@ function showStatusOk(msg) {
   bar.style.display = 'block';
   setTimeout(() => { bar.style.display = 'none'; }, 4000);
 }
+
+// ══════════════════════════════════════════════════════════════
+//  CHARGEMENT CSV
+// ══════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split(/?
+/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { fields.push(cur.trim().replace(/^"|"$/g,'')); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = fields[i] !== undefined ? fields[i] : ''; });
+    return obj;
+  });
+}
+
+async function fetchCSV(filename) {
+  const base = CONFIG.DATA_BASE_URL || 'https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data';
+  const url = base + '/' + filename + '?v=' + Date.now();
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('CSV_NOT_FOUND:' + filename + ' (' + r.status + ')');
+  return parseCSV(await r.text());
+}
+
+async function loadFromCSV() {
+  setLoader('Chargement tables...');
+  const tablesRaw = await fetchCSV('tables.csv');
+  setLoader('Chargement colonnes...');
+  const colsRaw = await fetchCSV('colonnes.csv').catch(() => []);
+  setLoader('Chargement historique...');
+  const histRaw = await fetchCSV('historique.csv').catch(() => []);
+
+  STATE.tables = tablesRaw.map((t, i) => ({
+    id: t.Id || String(i + 1),
+    Title: t.Titre || t.Title || t.NomTable || 'Table ' + (i+1),
+    Domain: t.Domaine || t.Domain || CONFIG.DOMAINS[0] || '',
+    Description: t.Description || '',
+    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
+    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
+    Owner: t.Proprietaire || t.Owner || '',
+    Frequency: t.Frequence || t.Frequency || '',
+    Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
+    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
+  }));
+
+  STATE.columns = colsRaw.map((c, i) => ({
+    id: String(i + 1),
+    TableId: c.IdTable || c.TableId || '',
+    ColumnName: c.NomColonne || c.ColumnName || '',
+    DataType: c.TypeDonnee || c.DataType || '',
+    KeyType: c.TypeCle || c.KeyType || '',
+    Description: c.Description || ''
+  }));
+
+  STATE.history = histRaw.map(h => ({
+    TableId: h.IdTable || h.TableId || '',
+    Date: h.DateModification || h.Date || '',
+    Note: h.Note || ''
+  }));
+
+  document.getElementById('status-bar').style.display = 'none';
+}
+
 function setLoader(msg) { document.getElementById('loader-msg').textContent = msg; document.getElementById('loader').style.display = 'flex'; }
 function hideLoader() { document.getElementById('loader').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }
 
