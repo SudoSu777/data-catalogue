@@ -1,4 +1,4 @@
-IdTable,NomColonne,TypeDonnee,TypeCle,Description
+﻿IdTable,NomColonne,TypeDonnee,TypeCle,Description
 1,ID_PRESTATION,INT,PK,Identifiant unique de la prestation
 1,DATE_ID,INT,FK,Reference vers DIM_DATE (Id 15) — format YYYYMMDD
 1,ASSURE_ID,INT,FK,Reference vers DIM_ASSURE (Id 2)
