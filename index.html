@@ -242,195 +242,6 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
 .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-
-/* ── RAG CHAT ── */
-#rag-chat-panel {
-  position: fixed; right: 0; top: 0; bottom: 0; width: 420px;
-  background: var(--bg); border-left: 0.5px solid var(--border2);
-  display: flex; flex-direction: column; z-index: 50;
-  transform: translateX(100%); transition: transform .25s ease;
-}
-#rag-chat-panel.open { transform: translateX(0); }
-#rag-chat-toggle {
-  position: fixed; right: 14px; bottom: 80px; z-index: 51;
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--purple); color: var(--purple-light);
-  border: none; cursor: pointer; font-size: 20px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(83,74,183,.35);
-  transition: transform .15s;
-}
-#rag-chat-toggle:hover { transform: scale(1.08); }
-#rag-chat-toggle .badge-count {
-  position: absolute; top: -3px; right: -3px;
-  background: var(--red); color: white;
-  font-size: 9px; font-weight: 600;
-  width: 16px; height: 16px; border-radius: 50%;
-  display: none; align-items: center; justify-content: center;
-}
-.rag-head {
-  padding: 12px 14px; border-bottom: 0.5px solid var(--border);
-  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-  background: var(--bg);
-}
-.rag-head-title { font-size: 13px; font-weight: 500; flex: 1; }
-.rag-head-btns { display: flex; gap: 4px; }
-.rag-icon-btn {
-  width: 28px; height: 28px; border: 0.5px solid var(--border2);
-  border-radius: var(--r-md); background: none; cursor: pointer;
-  color: var(--text2); font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
-}
-.rag-icon-btn:hover { background: var(--bg2); }
-/* Sidebar historique */
-.rag-body { display: flex; flex: 1; overflow: hidden; }
-.rag-sidebar {
-  width: 140px; border-right: 0.5px solid var(--border);
-  display: flex; flex-direction: column; flex-shrink: 0;
-  background: var(--bg2); overflow-y: auto;
-}
-.rag-sidebar-head {
-  padding: 8px 10px; font-size: 10px; font-weight: 500;
-  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
-  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
-}
-.rag-hist-item {
-  padding: 7px 10px; font-size: 11px; color: var(--text2);
-  cursor: pointer; border-bottom: 0.5px solid var(--border);
-  line-height: 1.35;
-}
-.rag-hist-item:hover { background: var(--bg3); }
-.rag-hist-item.active { background: var(--purple-light); color: var(--purple); }
-.rag-hist-date { font-size: 9.5px; color: var(--text3); margin-top: 2px; }
-.rag-new-btn {
-  margin: 8px; padding: 5px 8px; font-size: 11px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: none; color: var(--text2); cursor: pointer;
-  display: flex; align-items: center; gap: 4px;
-}
-.rag-new-btn:hover { background: var(--bg3); }
-/* Zone messages */
-.rag-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.rag-msgs {
-  flex: 1; overflow-y: auto; padding: 12px;
-  display: flex; flex-direction: column; gap: 12px;
-}
-.rag-msg-user {
-  align-self: flex-end; max-width: 85%;
-  background: var(--purple); color: var(--purple-light);
-  padding: 8px 12px; border-radius: 12px 12px 2px 12px;
-  font-size: 12px; line-height: 1.5;
-}
-.rag-msg-bot {
-  align-self: flex-start; max-width: 96%;
-}
-.rag-msg-bot-inner {
-  background: var(--bg2); border: 0.5px solid var(--border);
-  border-radius: 2px 12px 12px 12px;
-  padding: 10px 12px; font-size: 12px; line-height: 1.6;
-}
-.rag-tables-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-.rag-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 500;
-  cursor: pointer; border: 0.5px solid transparent;
-}
-.rag-chip:hover { opacity: .8; }
-.rag-joins {
-  background: var(--bg3); border: 0.5px solid var(--border);
-  border-radius: var(--r-md); padding: 8px 10px; margin: 6px 0;
-  font-family: var(--font-mono); font-size: 10px; color: var(--purple);
-  line-height: 1.7;
-}
-.rag-joins-label {
-  font-family: var(--font); font-size: 9.5px; font-weight: 500;
-  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
-  margin-bottom: 4px;
-}
-.rag-actions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
-.rag-action-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 9px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: 20px;
-  background: none; color: var(--text2); cursor: pointer;
-}
-.rag-action-btn:hover { background: var(--bg2); }
-.rag-action-btn.primary {
-  background: var(--purple); color: var(--purple-light); border-color: var(--purple);
-}
-.rag-suggestions {
-  display: flex; gap: 5px; flex-wrap: wrap;
-  padding: 6px 12px; border-top: 0.5px solid var(--border);
-}
-.rag-sugg-btn {
-  font-size: 10.5px; padding: 3px 9px;
-  border: 0.5px solid var(--border2); border-radius: 20px;
-  background: none; color: var(--text2); cursor: pointer;
-}
-.rag-sugg-btn:hover { border-color: var(--purple); color: var(--purple); }
-/* Zone saisie */
-.rag-input-area {
-  border-top: 0.5px solid var(--border); padding: 10px 12px;
-  background: var(--bg); flex-shrink: 0;
-}
-.rag-api-row {
-  display: flex; align-items: center; gap: 5px;
-  margin-bottom: 8px; font-size: 11px;
-}
-.rag-api-provider {
-  padding: 3px 7px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-}
-.rag-api-key {
-  flex: 1; padding: 3px 8px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-}
-.rag-input-row { display: flex; gap: 6px; align-items: flex-end; }
-.rag-input-row textarea {
-  flex: 1; padding: 7px 10px; font-size: 12px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-  resize: none; height: 50px; font-family: var(--font); line-height: 1.5;
-}
-.rag-send-btn {
-  width: 36px; height: 36px; border-radius: var(--r-md);
-  background: var(--purple); color: var(--purple-light);
-  border: none; cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.rag-send-btn:hover { background: var(--purple-dark); }
-.rag-typing {
-  display: flex; gap: 4px; align-items: center; padding: 8px 12px;
-}
-.rag-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text3); animation: ragbounce .9s infinite;
-}
-.rag-dot:nth-child(2){animation-delay:.15s}
-.rag-dot:nth-child(3){animation-delay:.3s}
-@keyframes ragbounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
-.rag-empty {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 10px; color: var(--text3); font-size: 12px; text-align: center;
-  padding: 20px;
-}
-.rag-empty svg { opacity: .35; }
-.rag-quick-q {
-  display: flex; flex-direction: column; gap: 5px; width: 100%;
-}
-.rag-quick-q-btn {
-  padding: 8px 10px; font-size: 11.5px; text-align: left;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text2); cursor: pointer;
-  line-height: 1.4;
-}
-.rag-quick-q-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
-.sec-lbl { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px; }
-
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
@@ -474,7 +285,7 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
         <span class="chip-rel" data-v="Non vérifiée" onclick="setReliability(this)">○ Non vérifiée</span>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-        <button class="btn btn-sm" style="background:#1D9E75;color:#EAF3DE;border-color:#1D9E75;gap:5px" onclick="toggleRAGChat()">
+        <button class="btn btn-sm" style="background:#1D9E75;color:#EAF3DE;border-color:#1D9E75;gap:5px" onclick="openRAG()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           Assistant RAG
         </button>
@@ -588,85 +399,60 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
   </div>
 </div>
 
-<!-- ── RAG CHAT TOGGLE BUTTON ── -->
-<button id="rag-chat-toggle" onclick="toggleRAGChat()" title="Assistant Data">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
-  <span class="badge-count" id="rag-badge">0</span>
-</button>
-
-<!-- ── RAG CHAT PANEL ── -->
-<div id="rag-chat-panel">
-  <!-- Header -->
-  <div class="rag-head">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    <span class="rag-head-title">Assistant Data CNPS</span>
-    <div class="rag-head-btns">
-      <button class="rag-icon-btn" onclick="ragNewConv()" title="Nouvelle conversation">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
-      <button class="rag-icon-btn" onclick="toggleRAGChat()" title="Fermer">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+<!-- Modal RAG -->
+<div class="overlay" id="modal-rag">
+  <div class="modal" style="width:700px;max-height:88vh;overflow-y:auto">
+    <div class="modal-title">
+      <span>🔍 Assistant Data — Recherche en langage naturel</span>
+      <button class="close-btn" onclick="closeModal('modal-rag')">✕</button>
     </div>
-  </div>
-
-  <div class="rag-body">
-    <!-- Historique sidebar -->
-    <div class="rag-sidebar">
-      <div class="rag-sidebar-head">Historique</div>
-      <div id="rag-hist-list"></div>
-      <div style="flex:1"></div>
-      <button class="rag-new-btn" onclick="ragNewConv()">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nouveau
-      </button>
+    <div style="display:flex;gap:8px;align-items:center;padding:8px 0 12px;border-bottom:0.5px solid var(--border);margin-bottom:12px">
+      <label style="font-size:11px;color:var(--text2);white-space:nowrap">Modèle :</label>
+      <select id="rag-model" style="font-size:11px;padding:4px 8px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);flex:1">
+        <option value="local">Analyse locale (sans LLM — immédiat)</option>
+        <option value="claude">Claude API (clé requise)</option>
+        <option value="ollama">Ollama local (serveur requis)</option>
+      </select>
+      <input id="rag-key" placeholder="sk-ant-..." style="font-size:11px;padding:4px 8px;width:200px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);display:none">
+      <input id="rag-ollama-url" placeholder="http://localhost:11434" style="font-size:11px;padding:4px 8px;width:200px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);display:none">
     </div>
-
-    <!-- Zone principale -->
-    <div class="rag-main">
-      <div class="rag-msgs" id="rag-msgs">
-        <div class="rag-empty" id="rag-empty">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span style="font-weight:500;color:var(--text2)">Posez une question sur vos données</span>
-          <span style="font-size:11px">Le RAG identifie les tables à croiser<br>et les jointures nécessaires</span>
-          <div class="rag-quick-q" id="rag-quick-q"></div>
-        </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <textarea id="rag-question" placeholder="Exemple : Je veux le nombre de salariés, d'employeurs, le montant total de cotisations et de prestations..." style="flex:1;min-height:68px;font-size:12px;padding:8px;border:0.5px solid var(--border2);border-radius:var(--r-md);background:var(--bg2);color:var(--text);resize:vertical;font-family:var(--font)"></textarea>
+      <button class="btn btn-primary" onclick="runRAG()" style="align-self:flex-end">▶ Analyser</button>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:12px">
+      <span style="font-size:10px;color:var(--text3);align-self:center">Suggestions :</span>
+      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Nombre de salariés et employeurs</button>
+      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Total cotisations vs prestations</button>
+      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Tables pour le suivi recouvrement</button>
+      <button class="chip btn-sm" onclick="document.getElementById('rag-question').value=this.textContent" style="font-size:10px">Tables certifiées domaine Prestation</button>
+    </div>
+    <div id="rag-loader" style="display:none;text-align:center;padding:20px;color:var(--text2);font-size:12px">
+      <div style="width:22px;height:22px;border:2px solid var(--border);border-top-color:#534AB7;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>
+      Analyse en cours...
+    </div>
+    <div id="rag-result" style="display:none;border:0.5px solid var(--border);border-radius:var(--r-md);overflow:hidden">
+      <div style="padding:12px;border-bottom:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Tables identifiées</div>
+        <div id="rag-tables" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
-
-      <!-- Suggestions dynamiques -->
-      <div class="rag-suggestions" id="rag-suggestions" style="display:none"></div>
-
-      <!-- Zone saisie -->
-      <div class="rag-input-area">
-        <div class="rag-api-row">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          <select id="rag-provider" class="rag-api-provider" onchange="onProviderChange()">
-            <option value="local">🔍 Analyse locale</option>
-            <option value="claude">⚡ Claude (Anthropic)</option>
-            <option value="openai">🤖 OpenAI (GPT-4)</option>
-            <option value="mistral">🌊 Mistral AI</option>
-            <option value="ollama">🖥️ Ollama (local)</option>
-          </select>
-          <input id="rag-api-key" class="rag-api-key" type="password"
-            placeholder="Clé API..." style="display:none"
-            onchange="saveAPIKey()">
-          <input id="rag-ollama-url-chat" class="rag-api-key" type="text"
-            placeholder="http://localhost:11434" style="display:none"
-            onchange="saveAPIKey()">
-        </div>
-        <div id="rag-key-status" style="font-size:10px;color:var(--green);margin-bottom:5px;display:none">
-          ✓ Clé sauvegardée localement
-        </div>
-        <div class="rag-input-row">
-          <textarea id="rag-input" placeholder="Ex : Femmes des entreprises agricoles par agence..."
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRAGMsg()}"></textarea>
-          <button class="rag-send-btn" onclick="sendRAGMsg()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center">
-          Clé stockée dans votre navigateur uniquement · <span id="rag-model-label">Analyse locale sans LLM</span>
-        </div>
+      <div style="padding:12px;border-bottom:0.5px solid var(--border);background:var(--bg2)">
+        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Analyse &amp; jointures</div>
+        <div id="rag-explain" style="font-size:12px;line-height:1.7;color:var(--text2)"></div>
+      </div>
+      <div style="padding:12px;border-bottom:0.5px solid var(--border)">
+        <div style="font-size:10px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Colonnes à utiliser</div>
+        <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead id="rag-cols-head"></thead><tbody id="rag-cols-body"></tbody>
+        </table></div>
+      </div>
+      <div style="padding:12px;display:flex;gap:8px;align-items:center">
+        <button class="btn btn-primary" onclick="exportRAGCSV()" style="gap:5px">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Télécharger rapport CSV
+        </button>
+        <button class="btn" onclick="document.getElementById('rag-result').style.display='none'">↩ Nouvelle question</button>
+        <span id="rag-status" style="font-size:11px;color:var(--text3);margin-left:auto"></span>
       </div>
     </div>
   </div>
@@ -1346,11 +1132,7 @@ function renderPanel(node) {
         Exporter JSON
       </button>
       ${STATE.isAdmin ? `
-        <button class="btn" onclick="ragAskAboutTable('${node.Title}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Assistant
-      </button>
-      <button class="btn" onclick="openEditModal('${node.id}')">
+        <button class="btn" onclick="openEditModal('${node.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Modifier
         </button>
@@ -1552,527 +1334,10 @@ if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debouncedInitGraph).observe(document.getElementById('graph-wrap'));
 }
 
-
 // ══════════════════════════════════════════════════════════════
-//  MODULE RAG CHAT — Assistant Data CNPS
+//  MODULE RAG
 // ══════════════════════════════════════════════════════════════
-const RAG_STORE_KEY = 'cnps_rag_conversations';
-const RAG_KEY_STORE = 'cnps_rag_api_keys';
-
-let ragState = {
-  open: false,
-  conversations: [],   // [{id, title, date, messages:[]}]
-  currentId: null,
-  typing: false
-};
-
-// ── Persistance ──
-function ragLoad() {
-  try {
-    const d = JSON.parse(localStorage.getItem(RAG_STORE_KEY) || '[]');
-    ragState.conversations = d;
-  } catch(e) { ragState.conversations = []; }
-}
-function ragSave() {
-  try { localStorage.setItem(RAG_STORE_KEY, JSON.stringify(ragState.conversations)); } catch(e) {}
-}
-function saveAPIKey() {
-  try {
-    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
-    const prov = document.getElementById('rag-provider').value;
-    const key = document.getElementById('rag-api-key').value.trim();
-    const url = document.getElementById('rag-ollama-url-chat').value.trim();
-    if (key) keys[prov] = key;
-    if (url) keys['ollama_url'] = url;
-    localStorage.setItem(RAG_KEY_STORE, JSON.stringify(keys));
-    const st = document.getElementById('rag-key-status');
-    st.style.display = 'block';
-    setTimeout(() => st.style.display = 'none', 2000);
-  } catch(e) {}
-}
-function loadAPIKey(prov) {
-  try {
-    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
-    return { key: keys[prov] || '', url: keys['ollama_url'] || 'http://localhost:11434' };
-  } catch(e) { return { key: '', url: 'http://localhost:11434' }; }
-}
-
-// ── UI ──
-function toggleRAGChat() {
-  ragState.open = !ragState.open;
-  document.getElementById('rag-chat-panel').classList.toggle('open', ragState.open);
-  if (ragState.open) { ragRenderHist(); ragInitEmpty(); }
-}
-
-function onProviderChange() {
-  const prov = document.getElementById('rag-provider').value;
-  const keyIn = document.getElementById('rag-api-key');
-  const urlIn = document.getElementById('rag-ollama-url-chat');
-  const labels = {
-    local: 'Analyse locale sans LLM',
-    claude: 'Claude Sonnet — Anthropic',
-    openai: 'GPT-4o — OpenAI',
-    mistral: 'Mistral Large — Mistral AI',
-    ollama: 'Modèle local — Ollama'
-  };
-  document.getElementById('rag-model-label').textContent = labels[prov] || '';
-  keyIn.style.display = prov === 'ollama' || prov === 'local' ? 'none' : 'block';
-  urlIn.style.display = prov === 'ollama' ? 'block' : 'none';
-  if (prov !== 'local' && prov !== 'ollama') {
-    const saved = loadAPIKey(prov);
-    keyIn.value = saved.key ? '••••••••••••' : '';
-    keyIn.placeholder = prov === 'claude' ? 'sk-ant-...' : prov === 'openai' ? 'sk-...' : 'Clé API...';
-  }
-  if (prov === 'ollama') {
-    const saved = loadAPIKey(prov);
-    urlIn.value = saved.url;
-  }
-}
-
-function ragNewConv() {
-  const id = 'conv_' + Date.now();
-  ragState.conversations.unshift({ id, title: 'Nouvelle conversation', date: new Date().toLocaleDateString('fr-FR'), messages: [] });
-  ragState.currentId = id;
-  ragSave();
-  ragRenderHist();
-  ragRenderMessages([]);
-  ragInitEmpty();
-}
-
-function ragSelectConv(id) {
-  ragState.currentId = id;
-  ragRenderHist();
-  const conv = ragState.conversations.find(c => c.id === id);
-  if (conv) ragRenderMessages(conv.messages);
-}
-
-function ragGetCurrent() {
-  return ragState.conversations.find(c => c.id === ragState.currentId);
-}
-
-function ragRenderHist() {
-  const list = document.getElementById('rag-hist-list');
-  if (!list) return;
-  if (!ragState.conversations.length) {
-    list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--text3);text-align:center">Aucun historique</div>';
-    return;
-  }
-  list.innerHTML = ragState.conversations.map(c => `
-    <div class="rag-hist-item ${c.id === ragState.currentId ? 'active' : ''}" onclick="ragSelectConv('${c.id}')">
-      ${escH(c.title)}
-      <div class="rag-hist-date">${c.date}</div>
-    </div>`).join('');
-}
-
-function ragInitEmpty() {
-  const conv = ragGetCurrent();
-  const isEmpty = !conv || !conv.messages.length;
-  const emptyEl = document.getElementById('rag-empty');
-  if (!emptyEl) return;
-  emptyEl.style.display = isEmpty ? 'flex' : 'none';
-  if (isEmpty) {
-    const qq = document.getElementById('rag-quick-q');
-    const questions = [
-      'Femmes des entreprises agricoles par agence',
-      'Montant des cotisations ATMP 2024 par branche',
-      'Employeurs avec majorations de retard en cours',
-      'Prestations retraite consolidées (national + IPRAO)',
-      'Salariés actifs par secteur d'activité'
-    ];
-    if (qq) qq.innerHTML = questions.map(q =>
-      `<button class="rag-quick-q-btn" onclick="ragQuickQ(this)">${escH(q)}</button>`
-    ).join('');
-  }
-}
-
-function ragQuickQ(btn) {
-  document.getElementById('rag-input').value = btn.textContent;
-  sendRAGMsg();
-}
-
-function ragRenderMessages(messages) {
-  const el = document.getElementById('rag-msgs');
-  const emptyEl = document.getElementById('rag-empty');
-  if (!el) return;
-  if (!messages.length) {
-    el.innerHTML = '';
-    if (emptyEl) { el.appendChild(emptyEl); emptyEl.style.display = 'flex'; }
-    document.getElementById('rag-suggestions').style.display = 'none';
-    return;
-  }
-  if (emptyEl) emptyEl.style.display = 'none';
-  el.innerHTML = messages.map(m => m.role === 'user' ? renderUserMsg(m) : renderBotMsg(m)).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function renderUserMsg(m) {
-  return `<div class="rag-msg-user">${escH(m.content)}</div>`;
-}
-
-function renderBotMsg(m) {
-  const d = m.data || {};
-  const tables = d.tables || [];
-  const cols = d.colonnes || [];
-  const joins = d.jointures || [];
-  const note = d.note || '';
-
-  const chips = tables.map(name => {
-    const t = STATE.tables.find(t => t.Title === name);
-    const col = t ? (DOMAIN_COLORS[t.Domain] || '#888') : '#888';
-    return `<span class="rag-chip" style="background:${col}18;border-color:${col};color:${col}"
-      onclick="ragOpenTable('${escH(name)}')" title="Voir dans le graphe">
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
-      ${escH(name)}</span>`;
-  }).join('');
-
-  const joinsHTML = joins.length ? `
-    <div class="rag-joins">
-      <div class="rag-joins-label">Jointures</div>
-      ${joins.map(j => escH(j)).join('<br>')}
-    </div>` : '';
-
-  const colsHTML = cols.length ? `
-    <div style="margin:8px 0">
-      <div class="sec-lbl" style="margin-bottom:4px">Colonnes clés</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10.5px">
-        <thead><tr>
-          ${['Table','Colonne','Type','Clé','Rôle'].map(h =>
-            `<th style="padding:3px 6px;text-align:left;border-bottom:0.5px solid var(--border);color:var(--text3);font-weight:500;font-size:9.5px;text-transform:uppercase">${h}</th>`
-          ).join('')}
-        </tr></thead>
-        <tbody>${cols.map((c,i) => {
-          const t = STATE.tables.find(t=>t.Title===c.table);
-          const col = t ? (DOMAIN_COLORS[t.Domain]||'#888') : '#888';
-          const bg = i%2===0 ? 'var(--bg)' : 'var(--bg2)';
-          const kb = c.cle ? `<span style="background:var(--purple-light);color:var(--purple);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:9px">${c.cle}</span>` : '';
-          return `<tr style="background:${bg}">
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-weight:500;color:${col};font-size:10px">${escH(c.table)}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-family:monospace;font-size:9.5px;color:var(--purple)">${escH(c.colonne)}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-size:9px"><span style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:monospace">${escH(c.type)}</span></td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border)">${kb}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:10px">${escH(c.utilisation||'—')}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>` : '';
-
-  return `<div class="rag-msg-bot"><div class="rag-msg-bot-inner">
-    ${tables.length ? `<div class="sec-lbl" style="margin-bottom:4px">${tables.length} table(s) identifiée(s)</div>
-    <div class="rag-tables-chips">${chips}</div>` : ''}
-    <div style="color:var(--text2);font-size:12px;line-height:1.6;margin:6px 0">${(d.explication||m.content||'').replace(/
-/g,'<br>')}</div>
-    ${joinsHTML}${colsHTML}
-    <div class="rag-actions">
-      ${tables.length ? `<button class="rag-action-btn primary" onclick="ragExportCSV(${JSON.stringify(d).replace(/"/g,'&quot;')})">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export CSV</button>` : ''}
-      ${tables.length ? `<button class="rag-action-btn" onclick="ragHighlightTables(${JSON.stringify(tables)})">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Voir dans le graphe</button>` : ''}
-      ${note ? `<span style="font-size:10px;color:var(--amber);margin-left:auto;align-self:center">⚠ ${escH(note)}</span>` : ''}
-    </div>
-  </div></div>`;
-}
-
-function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function ragOpenTable(name) {
-  const n = gNodes && gNodes.find(n => n.Title === name || n.title === name || n.id === name);
-  if (n) { STATE.selectedId = n.id; renderPanel(n); if (!ragState.open) toggleRAGChat(); }
-}
-
-function ragHighlightTables(tables) {
-  if (!gNodes) return;
-  STATE.filter.search = '';
-  document.getElementById('search').value = '';
-  if (sim) sim.alpha(.3).restart();
-  if (tables.length === 1) {
-    const n = gNodes.find(n => n.Title === tables[0]);
-    if (n) { STATE.selectedId = n.id; renderPanel(n); }
-  }
-}
-
-// ── LLM CALLS ──
-function ragBuildContext(question) {
-  const ctx = STATE.tables.map(t => {
-    const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilité: ${t.Reliability} | Source: ${t.Source||''}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => `${c.ColumnName}(${c.DataType}${c.KeyType?','+c.KeyType:''}): ${c.Description||''}`).join(' | ')}`;
-  }).join('
-
-');
-
-  return `Tu es un expert data de la CNPS (Caisse Nationale de Prévoyance Sociale, Côte d'Ivoire).
-Tu analyses le catalogue de données du Département Statistique et Actuariat (DSA).
-
-CATALOGUE COMPLET:
-${ctx}
-
-RÈGLES DE RÉPONSE:
-- Réponds UNIQUEMENT en JSON valide, sans markdown
-- Identifie les tables pertinentes avec leurs noms EXACTS du catalogue
-- Explique les jointures en français clair et concis
-- Pour les secteurs d'activité, CODE_SEC 'A' = agriculture
-- Les montants sont en FCFA
-- Les 4 branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604)
-
-FORMAT JSON ATTENDU:
-{
-  "tables": ["NomExact1", "NomExact2"],
-  "explication": "Explication courte en français",
-  "jointures": ["TABLE_A.COL = TABLE_B.COL", "Filtre: CONDITION"],
-  "colonnes": [
-    {"table": "NomTable", "colonne": "NOM_COL", "type": "TYPE", "cle": "PK/FK/", "description": "...", "utilisation": "Pourquoi cette colonne"}
-  ],
-  "suggestions": ["Question de relance 1", "Question de relance 2", "Question de relance 3"]
-}`;
-}
-
-async function callRAGLLM(question, history) {
-  const prov = document.getElementById('rag-provider').value;
-  if (prov === 'local') throw new Error('LOCAL');
-
-  const stored = loadAPIKey(prov);
-  const keyInput = document.getElementById('rag-api-key').value.trim();
-  const key = (keyInput && !keyInput.startsWith('••')) ? keyInput : stored.key;
-
-  const sysPrompt = ragBuildContext(question);
-  const msgs = history.filter(m=>m.role==='user'||m.role==='assistant')
-    .slice(-6).map(m => ({ role: m.role, content: m.role==='user' ? m.content : JSON.stringify(m.data||{explication:m.content}) }));
-  msgs.push({ role: 'user', content: question });
-
-  if (prov === 'claude') {
-    if (!key) throw new Error('Clé API Claude manquante');
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, system: sysPrompt, messages: msgs })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message);
-    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-
-  } else if (prov === 'openai') {
-    if (!key) throw new Error('Clé API OpenAI manquante');
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
-      body: JSON.stringify({ model:'gpt-4o', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message);
-    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
-
-  } else if (prov === 'mistral') {
-    if (!key) throw new Error('Clé API Mistral manquante');
-    const r = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
-      body: JSON.stringify({ model:'mistral-large-latest', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
-    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
-
-  } else if (prov === 'ollama') {
-    const url = document.getElementById('rag-ollama-url-chat').value || stored.url || 'http://localhost:11434';
-    const r = await fetch(url+'/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ model:'mistral', stream:false, format:'json',
-        messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    if (!r.ok) throw new Error('Ollama : vérifiez que le serveur tourne sur '+url);
-    const d = await r.json();
-    const txt = d.message?.content || d.response || '{}';
-    return JSON.parse(txt.replace(/```json|```/g,'').trim());
-  }
-  throw new Error('Fournisseur inconnu');
-}
-
-// ── Analyse locale (sans LLM) ──
-function ragLocalAnalysis(question) {
-  const ql = question.toLowerCase();
-  const words = ql.split(/\s+/).filter(w=>w.length>2);
-
-  const domainKW = {
-    'prestation': ['Prestation'], 'retraite': ['Prestation'],
-    'cotisation': ['Cotisation'], 'debit': ['Cotisation'], 'majoration': ['Cotisation'],
-    'employe': ['Recouvrement','Immatriculation'], 'employeur': ['Recouvrement'],
-    'salari': ['Immatriculation'], 'salarié': ['Immatriculation'],
-    'agence': ['Referentiel'], 'branche': ['Referentiel'], 'date': ['Referentiel']
-  };
-
-  const targetDomains = new Set();
-  Object.entries(domainKW).forEach(([kw,doms]) => {
-    if (words.some(w=>w.includes(kw))) doms.forEach(d=>targetDomains.add(d));
-  });
-
-  const scored = STATE.tables.map(t => {
-    let s = targetDomains.has(t.Domain) ? 8 : 0;
-    const hay = (t.Title+' '+t.Description+' '+
-      STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')
-    ).toLowerCase();
-    words.forEach(w => { if(hay.includes(w)) s+=2; });
-    if (ql.includes('femme') && t.id==='2') s+=10;
-    if (ql.includes('agence') && (t.Title.includes('AGENCE')||t.Title.includes('EMPLOYEUR'))) s+=8;
-    if (ql.includes('agricol') && t.Title.includes('EMPLOY')) s+=8;
-    if (ql.includes('retraite') && (t.Title.includes('RETRAITE')||t.Title.includes('PRESTA'))) s+=6;
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
-  const joins = [];
-  scored.forEach(ta => {
-    STATE.columns.filter(c=>c.TableId===ta.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==ta.id);
-      if(pk){ const tgt=STATE.tables.find(t=>t.id===pk.TableId);
-        if(tgt&&scored.find(s=>s.id===tgt.id)) joins.push(`${ta.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);
-      }
-    });
-  });
-
-  const suggestions = [
-    'Ventiler par branche (PF/ATMP/RETRAITE/AM)',
-    'Filtrer par période spécifique',
-    'Ajouter la dimension agence'
-  ];
-
-  return {
-    tables: scored.map(t=>t.Title),
-    explication: scored.length
-      ? `${scored.length} table(s) identifiée(s) par analyse locale du catalogue. Pour une explication détaillée des jointures, activez un modèle LLM.`
-      : 'Aucune table correspondante trouvée. Reformulez votre question.',
-    jointures: [...new Set(joins)],
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).slice(0,4).map(c=>({
-      table:t.Title, colonne:c.ColumnName, type:c.DataType, cle:c.KeyType||'',
-      description:c.Description||'', utilisation:c.KeyType==='PK'?'Clé primaire':c.KeyType==='FK'?'Clé de jointure':'Valeur à analyser'
-    }))),
-    suggestions,
-    note: 'Analyse locale — activez Claude/OpenAI/Mistral pour une analyse sémantique'
-  };
-}
-
-// ── Message envoyé ──
-async function sendRAGMsg() {
-  const input = document.getElementById('rag-input');
-  const q = input.value.trim();
-  if (!q || ragState.typing) return;
-
-  if (!ragState.currentId) ragNewConv();
-  const conv = ragGetCurrent();
-  if (!conv) return;
-
-  input.value = '';
-  document.getElementById('rag-suggestions').style.display = 'none';
-
-  conv.messages.push({ role:'user', content:q });
-  if (conv.title === 'Nouvelle conversation') conv.title = q.slice(0,28)+(q.length>28?'…':'');
-  ragSave();
-  ragRenderMessages(conv.messages);
-  ragRenderHist();
-
-  ragState.typing = true;
-  const typingEl = document.createElement('div');
-  typingEl.className = 'rag-typing';
-  typingEl.innerHTML = '<div class="rag-dot"></div><div class="rag-dot"></div><div class="rag-dot"></div>';
-  document.getElementById('rag-msgs').appendChild(typingEl);
-  document.getElementById('rag-msgs').scrollTop = 9999;
-
-  let data;
-  try {
-    const prov = document.getElementById('rag-provider').value;
-    if (prov === 'local') {
-      await new Promise(r=>setTimeout(r,400));
-      data = ragLocalAnalysis(q);
-    } else {
-      data = await callRAGLLM(q, conv.messages.slice(0,-1));
-    }
-  } catch(e) {
-    if (e.message === 'LOCAL') {
-      data = ragLocalAnalysis(q);
-    } else {
-      data = { tables:[], explication:'Erreur : '+e.message, jointures:[], colonnes:[], suggestions:[] };
-    }
-  }
-
-  ragState.typing = false;
-  typingEl.remove();
-
-  const botMsg = { role:'assistant', content: data.explication||'', data };
-  conv.messages.push(botMsg);
-  ragSave();
-  ragRenderMessages(conv.messages);
-
-  if (data.suggestions?.length) {
-    const suggEl = document.getElementById('rag-suggestions');
-    suggEl.style.display = 'flex';
-    suggEl.innerHTML = data.suggestions.slice(0,3).map(s =>
-      `<button class="rag-sugg-btn" onclick="ragSuggClick(this)">${escH(s)}</button>`
-    ).join('');
-  }
-}
-
-function ragSuggClick(btn) {
-  document.getElementById('rag-input').value = btn.textContent;
-  sendRAGMsg();
-}
-
-function ragExportCSV(data) {
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE CNPS — ASSISTANT RAG
-';
-  csv += 'TABLES IDENTIFIÉES
-Table,Domaine,Fiabilité,Lien SharePoint
-';
-  (data.tables||[]).forEach(n=>{
-    const t=STATE.tables.find(t=>t.Title===n);
-    if(t) csv+=`"${t.Title}","${t.Domain}","${t.Reliability}","${t.Sharepoint||''}"
-`;
-  });
-  csv += '
-EXPLICATION
-"'+(data.explication||'').replace(/"/g,"''")+'"';
-  csv += '
-
-JOINTURES
-';
-  (data.jointures||[]).forEach(j=>{ csv+=`"${j}"
-`; });
-  csv += '
-COLONNES
-Table,Colonne,Type,Clé,Description,Utilisation
-';
-  (data.colonnes||[]).forEach(c=>{
-    csv+=`"${c.table}","${c.colonne}","${c.type}","${c.cle||''}","${(c.description||'').replace(/"/g,"''")}","${(c.utilisation||'').replace(/"/g,"''")}")
-`;
-  });
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='RAG_CNPS_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
-}
-
-// Init RAG au chargement
-function initRAGChat() {
-  ragLoad();
-  if (!ragState.conversations.length) ragNewConv();
-  else ragState.currentId = ragState.conversations[0].id;
-}
-
-// Appel depuis le graphe — clic sur nœud ouvre le chat pré-rempli
-function ragAskAboutTable(tableName) {
-  if (!ragState.open) toggleRAGChat();
-  setTimeout(() => {
-    document.getElementById('rag-input').value = `Parlez-moi de la table ${tableName} et comment l'utiliser`;
-    sendRAGMsg();
-  }, 300);
-}
-
-// RAG button injected directly in renderPanel below
-
-let _ragResult = null; // legacy compat
-function openRAG() { toggleRAGChat(); } // legacy compat
-
+let _ragResult = null;
 
 document.addEventListener('change', e => {
   if (e.target.id !== 'rag-model') return;
@@ -2239,10 +1504,7 @@ Table,Colonne,Type,Cle,Description,Utilisation
 }
 
 
-window.onload = async function() {
-  await init();
-  initRAGChat();
-};
+window.onload = init;
 </script>
 </body>
 </html>
