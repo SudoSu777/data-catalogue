@@ -1,0 +1,2257 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Catalogue CNPS — DSA</title>
+
+<!-- ============================================================
+     CONFIGURATION — À MODIFIER AVANT DÉPLOIEMENT
+     ============================================================ -->
+<script>
+const CONFIG = {
+  DATA_SOURCE: "csv",  // "csv" ou "sharepoint"
+  // URL de base de votre site SharePoint
+  // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
+  SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
+
+  // Nom exact de la Liste SharePoint qui stocke les tables du catalogue
+  LIST_TABLES: "CatalogueTables",
+
+  // Nom exact de la Liste SharePoint qui stocke les colonnes de chaque table
+  LIST_COLUMNS: "CatalogueColonnes",
+
+  // Nom exact de la Liste SharePoint qui stocke l'historique des modifications
+  LIST_HISTORY: "CatalogueHistorique",
+
+  // Emails des administrateurs du catalogue (accès complet : ajout / modification / suppression)
+  // Les autres utilisateurs sont en lecture seule
+  ADMIN_EMAILS: [
+    "k.nguessan@cnps.ci"//,
+    //"admin2@votre-entreprise.com"
+  ],
+
+  // Domaines métier disponibles (modifiable)
+  DOMAINS: ["Prestation", "Cotisation", "Recouvrement", "Immatriculation", "Referentiel"],
+
+  // Niveaux de fiabilité disponibles
+  RELIABILITY_LEVELS: ["Certifiée", "En validation", "Non vérifiée"],
+
+  // Types de variables disponibles pour les colonnes
+  COLUMN_TYPES: ["INT", "BIGINT", "VARCHAR", "NVARCHAR", "DECIMAL", "FLOAT", "DATE", "DATETIME", "BOOL", "TEXT", "GUID", "JSON"]
+};
+</script>
+
+<style>
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #ffffff; --bg2: #f5f4f0; --bg3: #eceae3;
+  --text: #2c2c2a; --text2: #6b6a65; --text3: #9b9a94;
+  --border: rgba(44,44,42,0.12); --border2: rgba(44,44,42,0.22);
+  --purple: #534AB7; --purple-light: #EEEDFE; --purple-dark: #3C3489;
+  --green: #1D9E75; --green-light: #EAF3DE; --green-dark: #3B6D11;
+  --amber: #BA7517; --amber-light: #FAEEDA; --amber-dark: #854F0B;
+  --red: #E24B4A; --red-light: #FCEBEB; --red-dark: #A32D2D;
+  --coral: #D85A30; --blue: #378ADD; --teal: #1D9E75;
+  --r-md: 8px; --r-lg: 12px;
+  --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Cascadia Code", "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1e1e1c; --bg2: #28281f; --bg3: #323228;
+    --text: #e8e6dc; --text2: #a8a69c; --text3: #6b6a65;
+    --border: rgba(232,230,220,0.1); --border2: rgba(232,230,220,0.2);
+    --purple-light: #26215C; --green-light: #04342C; --amber-light: #412402; --red-light: #501313;
+    --green-dark: #9FE1CB; --amber-dark: #FAC775; --red-dark: #F7C1C1; --purple-dark: #CECBF6;
+  }
+}
+body { font-family: var(--font); background: var(--bg3); color: var(--text); min-height: 100vh; margin: 0; }
+
+/* ── Layout ── */
+#app { display: flex; flex-direction: column; height: 100vh; overflow: hidden; min-height: 600px; }
+
+/* ── Header ── */
+#header {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px; background: var(--bg);
+  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+}
+#header h1 { font-size: 15px; font-weight: 500; }
+#header .sub { font-size: 12px; color: var(--text2); }
+.user-badge {
+  margin-left: auto; display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: var(--text2);
+}
+.admin-pill {
+  background: var(--purple-light); color: var(--purple);
+  padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 500;
+}
+#status-bar {
+  font-size: 11px; padding: 4px 16px; text-align: center;
+  background: var(--amber-light); color: var(--amber-dark);
+  display: none;
+}
+
+/* ── Main ── */
+#main { display: flex; flex: 1; overflow: hidden; min-height: 0; }
+
+/* ── Toolbar ── */
+#toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 12px; background: var(--bg); border-bottom: 0.5px solid var(--border); flex-shrink: 0; }
+.search-wrap { position: relative; flex: 1; min-width: 160px; }
+.search-wrap svg { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; stroke: var(--text3); fill: none; stroke-width: 2; }
+.search-wrap input { width: 100%; padding: 6px 10px 6px 28px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: var(--bg2); color: var(--text); }
+.chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.chip { padding: 3px 10px; border-radius: 20px; font-size: 11px; cursor: pointer; border: 0.5px solid var(--border2); background: var(--bg2); color: var(--text2); transition: all .15s; white-space: nowrap; }
+.chip.active { background: var(--purple); color: var(--purple-light); border-color: var(--purple); }
+.chip-rel { border-radius: 20px; font-size: 11px; padding: 3px 9px; cursor: pointer; border: 0.5px solid var(--border); background: transparent; color: var(--text2); }
+.chip-rel.active { background: var(--purple-light); color: var(--purple); border-color: var(--purple); }
+
+/* ── Graph ── */
+#graph-wrap { flex: 1; position: relative; overflow: hidden; }
+#canvas { display: block; width: 100%; height: 100%; cursor: default; }
+#tooltip {
+  position: absolute; pointer-events: none; display: none; z-index: 10;
+  background: var(--bg); border: 0.5px solid var(--border2);
+  border-radius: var(--r-lg); padding: 10px 13px; max-width: 240px;
+  font-size: 12px; line-height: 1.5;
+}
+#tooltip .tt-name { font-size: 13px; font-weight: 500; margin-bottom: 3px; }
+#tooltip .tt-desc { color: var(--text2); margin-bottom: 6px; }
+.tt-pills { display: flex; gap: 5px; flex-wrap: wrap; }
+.pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 500; }
+.pill-green { background: var(--green-light); color: var(--green-dark); }
+.pill-amber { background: var(--amber-light); color: var(--amber-dark); }
+.pill-red   { background: var(--red-light);   color: var(--red-dark); }
+.pill-gray  { background: var(--bg3); color: var(--text2); }
+.pill-purple{ background: var(--purple-light); color: var(--purple); }
+.legend {
+  position: absolute; bottom: 10px; left: 10px;
+  background: var(--bg); border: 0.5px solid var(--border);
+  border-radius: var(--r-md); padding: 7px 11px;
+  display: flex; flex-direction: column; gap: 4px; font-size: 11px; color: var(--text2);
+}
+.leg-row { display: flex; align-items: center; gap: 6px; }
+.leg-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+#zoom-ctrl {
+  position: absolute; bottom: 10px; right: 10px;
+  display: flex; gap: 4px;
+}
+.zoom-btn {
+  width: 28px; height: 28px; border: 0.5px solid var(--border2); background: var(--bg);
+  border-radius: var(--r-md); font-size: 16px; cursor: pointer; color: var(--text);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: 320px; flex-shrink: 0; background: var(--bg);
+  border-left: 0.5px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+#panel { flex: 1; overflow-y: auto; padding: 14px; }
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; height: 100%; gap: 10px;
+  color: var(--text3); font-size: 13px; text-align: center;
+}
+.empty-state svg { width: 40px; height: 40px; stroke: var(--text3); fill: none; stroke-width: 1.5; opacity: .5; }
+.panel-head { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; }
+.node-icon { width: 38px; height: 38px; border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+.panel-title { font-size: 14px; font-weight: 500; }
+.panel-sub { font-size: 11px; color: var(--text2); }
+.sec-label { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin: 14px 0 6px; }
+.usage-row { display: flex; align-items: center; gap: 8px; }
+.usage-bar { flex: 1; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.usage-fill { height: 100%; border-radius: 2px; transition: width .3s; }
+.usage-num { font-size: 12px; font-weight: 500; min-width: 24px; text-align: right; }
+
+/* Colonnes */
+.col-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.col-table th { font-size: 10px; font-weight: 500; color: var(--text3); text-align: left; padding: 4px 6px; border-bottom: 0.5px solid var(--border); }
+.col-table td { padding: 5px 6px; border-bottom: 0.5px solid var(--border); vertical-align: top; line-height: 1.4; }
+.col-table tr:last-child td { border-bottom: none; }
+.col-name { font-family: var(--font-mono); font-size: 11px; }
+.type-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: var(--font-mono); background: var(--bg2); color: var(--text2); white-space: nowrap; }
+.key-badge { display: inline-block; padding: 1px 5px; border-radius: 4px; font-size: 10px; font-family: var(--font-mono); background: var(--purple-light); color: var(--purple); white-space: nowrap; }
+.col-desc-cell { color: var(--text2); font-size: 11px; max-width: 120px; }
+
+/* Liens */
+.link-item {
+  display: flex; align-items: center; gap: 6px; font-size: 12px;
+  padding: 5px 8px; border-radius: var(--r-md); cursor: pointer;
+  border: 0.5px solid var(--border); background: var(--bg2);
+  margin-bottom: 4px; transition: background .15s;
+}
+.link-item:hover { background: var(--bg3); }
+.link-item .link-key { font-size: 10px; font-family: var(--font-mono); color: var(--text3); margin-left: auto; }
+
+/* Historique */
+.hist-item { display: flex; gap: 8px; padding: 5px 0; border-bottom: 0.5px solid var(--border); font-size: 11.5px; }
+.hist-date { color: var(--text3); white-space: nowrap; font-family: var(--font-mono); font-size: 10.5px; }
+.hist-msg { color: var(--text2); }
+
+/* Action buttons */
+.action-row { display: flex; gap: 6px; margin-top: 14px; flex-wrap: wrap; }
+.btn { display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: transparent; color: var(--text); cursor: pointer; transition: background .15s; white-space: nowrap; }
+.btn:hover { background: var(--bg2); }
+.btn-primary { background: var(--purple); color: var(--purple-light); border-color: var(--purple); }
+.btn-primary:hover { background: var(--purple-dark); }
+.btn-danger { color: var(--red-dark); border-color: var(--red); }
+.btn-danger:hover { background: var(--red-light); }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+
+/* ── Modals ── */
+.overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.4);
+  display: none; align-items: center; justify-content: center; z-index: 100;
+}
+.overlay.open { display: flex; }
+.modal {
+  background: var(--bg); border-radius: var(--r-lg); padding: 20px;
+  width: 500px; max-height: 85vh; overflow-y: auto;
+  border: 0.5px solid var(--border2); max-width: 95vw;
+}
+.modal-title { font-size: 15px; font-weight: 500; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.close-btn { background: none; border: none; cursor: pointer; font-size: 18px; color: var(--text2); line-height: 1; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group.full { grid-column: 1/-1; }
+label { font-size: 11px; font-weight: 500; color: var(--text2); }
+input, select, textarea { width: 100%; padding: 7px 10px; font-size: 12px; border: 0.5px solid var(--border2); border-radius: var(--r-md); background: var(--bg2); color: var(--text); font-family: var(--font); }
+textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
+.modal-actions { display: flex; gap: 8px; margin-top: 16px; justify-content: flex-end; }
+
+/* Éditeur de colonnes dans le modal */
+#col-editor { border: 0.5px solid var(--border); border-radius: var(--r-md); overflow: hidden; margin-top: 6px; }
+.col-editor-head { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 1.6fr 28px; gap: 6px; padding: 6px 8px; background: var(--bg3); font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; }
+.col-editor-row { display: grid; grid-template-columns: 1.2fr 1fr 0.8fr 1.6fr 28px; gap: 6px; padding: 5px 8px; border-top: 0.5px solid var(--border); align-items: center; }
+.col-editor-row input, .col-editor-row select { padding: 4px 6px; font-size: 11px; }
+.col-del { background: none; border: none; cursor: pointer; color: var(--text3); font-size: 14px; padding: 2px; border-radius: 4px; }
+.col-del:hover { color: var(--red-dark); background: var(--red-light); }
+#add-col-btn { width: 100%; padding: 6px; font-size: 11px; border: none; border-top: 0.5px solid var(--border); background: var(--bg2); color: var(--purple); cursor: pointer; }
+#add-col-btn:hover { background: var(--purple-light); }
+
+/* Loader */
+#loader {
+  position: fixed; inset: 0; background: var(--bg); display: flex;
+  align-items: center; justify-content: center; flex-direction: column;
+  gap: 12px; z-index: 200; font-size: 13px; color: var(--text2);
+}
+.spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+
+/* ── RAG CHAT ── */
+#rag-chat-panel {
+  position: fixed; right: 0; top: 0; bottom: 0; width: 420px;
+  background: var(--bg); border-left: 0.5px solid var(--border2);
+  display: flex; flex-direction: column; z-index: 50;
+  transform: translateX(100%); transition: transform .25s ease;
+}
+#rag-chat-panel.open { transform: translateX(0); }
+#rag-chat-toggle {
+  position: fixed; right: 14px; bottom: 80px; z-index: 51;
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--purple); color: var(--purple-light);
+  border: none; cursor: pointer; font-size: 20px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 8px rgba(83,74,183,.35);
+  transition: transform .15s;
+}
+#rag-chat-toggle:hover { transform: scale(1.08); }
+#rag-chat-toggle .badge-count {
+  position: absolute; top: -3px; right: -3px;
+  background: var(--red); color: white;
+  font-size: 9px; font-weight: 600;
+  width: 16px; height: 16px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+}
+.rag-head {
+  padding: 12px 14px; border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  background: var(--bg);
+}
+.rag-head-title { font-size: 13px; font-weight: 500; flex: 1; }
+.rag-head-btns { display: flex; gap: 4px; }
+.rag-icon-btn {
+  width: 28px; height: 28px; border: 0.5px solid var(--border2);
+  border-radius: var(--r-md); background: none; cursor: pointer;
+  color: var(--text2); font-size: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+.rag-icon-btn:hover { background: var(--bg2); }
+/* Sidebar historique */
+.rag-body { display: flex; flex: 1; overflow: hidden; }
+.rag-sidebar {
+  width: 140px; border-right: 0.5px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0;
+  background: var(--bg2); overflow-y: auto;
+}
+.rag-sidebar-head {
+  padding: 8px 10px; font-size: 10px; font-weight: 500;
+  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
+  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
+}
+.rag-hist-item {
+  padding: 7px 10px; font-size: 11px; color: var(--text2);
+  cursor: pointer; border-bottom: 0.5px solid var(--border);
+  line-height: 1.35;
+}
+.rag-hist-item:hover { background: var(--bg3); }
+.rag-hist-item.active { background: var(--purple-light); color: var(--purple); }
+.rag-hist-date { font-size: 9.5px; color: var(--text3); margin-top: 2px; }
+.rag-new-btn {
+  margin: 8px; padding: 5px 8px; font-size: 11px;
+  border: 0.5px solid var(--border2); border-radius: var(--r-md);
+  background: none; color: var(--text2); cursor: pointer;
+  display: flex; align-items: center; gap: 4px;
+}
+.rag-new-btn:hover { background: var(--bg3); }
+/* Zone messages */
+.rag-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.rag-msgs {
+  flex: 1; overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.rag-msg-user {
+  align-self: flex-end; max-width: 85%;
+  background: var(--purple); color: var(--purple-light);
+  padding: 8px 12px; border-radius: 12px 12px 2px 12px;
+  font-size: 12px; line-height: 1.5;
+}
+.rag-msg-bot {
+  align-self: flex-start; max-width: 96%;
+}
+.rag-msg-bot-inner {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 2px 12px 12px 12px;
+  padding: 10px 12px; font-size: 12px; line-height: 1.6;
+}
+.rag-tables-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
+.rag-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 500;
+  cursor: pointer; border: 0.5px solid transparent;
+}
+.rag-chip:hover { opacity: .8; }
+.rag-joins {
+  background: var(--bg3); border: 0.5px solid var(--border);
+  border-radius: var(--r-md); padding: 8px 10px; margin: 6px 0;
+  font-family: var(--font-mono); font-size: 10px; color: var(--purple);
+  line-height: 1.7;
+}
+.rag-joins-label {
+  font-family: var(--font); font-size: 9.5px; font-weight: 500;
+  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
+  margin-bottom: 4px;
+}
+.rag-actions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
+.rag-action-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 9px; font-size: 10.5px;
+  border: 0.5px solid var(--border2); border-radius: 20px;
+  background: none; color: var(--text2); cursor: pointer;
+}
+.rag-action-btn:hover { background: var(--bg2); }
+.rag-action-btn.primary {
+  background: var(--purple); color: var(--purple-light); border-color: var(--purple);
+}
+.rag-suggestions {
+  display: flex; gap: 5px; flex-wrap: wrap;
+  padding: 6px 12px; border-top: 0.5px solid var(--border);
+}
+.rag-sugg-btn {
+  font-size: 10.5px; padding: 3px 9px;
+  border: 0.5px solid var(--border2); border-radius: 20px;
+  background: none; color: var(--text2); cursor: pointer;
+}
+.rag-sugg-btn:hover { border-color: var(--purple); color: var(--purple); }
+/* Zone saisie */
+.rag-input-area {
+  border-top: 0.5px solid var(--border); padding: 10px 12px;
+  background: var(--bg); flex-shrink: 0;
+}
+.rag-api-row {
+  display: flex; align-items: center; gap: 5px;
+  margin-bottom: 8px; font-size: 11px;
+}
+.rag-api-provider {
+  padding: 3px 7px; font-size: 10.5px;
+  border: 0.5px solid var(--border2); border-radius: var(--r-md);
+  background: var(--bg2); color: var(--text);
+}
+.rag-api-key {
+  flex: 1; padding: 3px 8px; font-size: 10.5px;
+  border: 0.5px solid var(--border2); border-radius: var(--r-md);
+  background: var(--bg2); color: var(--text);
+}
+.rag-input-row { display: flex; gap: 6px; align-items: flex-end; }
+.rag-input-row textarea {
+  flex: 1; padding: 7px 10px; font-size: 12px;
+  border: 0.5px solid var(--border2); border-radius: var(--r-md);
+  background: var(--bg2); color: var(--text);
+  resize: none; height: 50px; font-family: var(--font); line-height: 1.5;
+}
+.rag-send-btn {
+  width: 36px; height: 36px; border-radius: var(--r-md);
+  background: var(--purple); color: var(--purple-light);
+  border: none; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.rag-send-btn:hover { background: var(--purple-dark); }
+.rag-typing {
+  display: flex; gap: 4px; align-items: center; padding: 8px 12px;
+}
+.rag-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--text3); animation: ragbounce .9s infinite;
+}
+.rag-dot:nth-child(2){animation-delay:.15s}
+.rag-dot:nth-child(3){animation-delay:.3s}
+@keyframes ragbounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.rag-empty {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 10px; color: var(--text3); font-size: 12px; text-align: center;
+  padding: 20px;
+}
+.rag-empty svg { opacity: .35; }
+.rag-quick-q {
+  display: flex; flex-direction: column; gap: 5px; width: 100%;
+}
+.rag-quick-q-btn {
+  padding: 8px 10px; font-size: 11.5px; text-align: left;
+  border: 0.5px solid var(--border2); border-radius: var(--r-md);
+  background: var(--bg2); color: var(--text2); cursor: pointer;
+  line-height: 1.4;
+}
+.rag-quick-q-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
+.sec-lbl { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- Loader -->
+<div id="loader">
+  <div class="spinner"></div>
+  <span id="loader-msg">Chargement du catalogue CNPS...</span>
+</div>
+
+<!-- App -->
+<div id="app" style="display:none">
+  <div id="header">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
+    <div>
+      <h1>Data Catalogue CNPS</h1>
+      <div class="sub">DSA — Département Statistique et Actuariat</div>
+    </div>
+    <div class="user-badge">
+      <span id="user-name">Chargement...</span>
+      <span id="admin-badge" class="admin-pill" style="display:none">Admin</span>
+    </div>
+  </div>
+  <div id="status-bar" id="status-bar">⚠️ Mode démo — données locales (SharePoint non connecté)</div>
+
+  <!-- Toolbar -->
+  <div id="toolbar" style="border-bottom:0.5px solid var(--border);flex-shrink:0;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 12px;background:var(--bg)">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search" placeholder="Rechercher une table..." oninput="onSearch(this.value)">
+      </div>
+      <div class="chips" id="domain-chips">
+        <span class="chip active" data-v="ALL" onclick="setDomain(this)">Tous</span>
+      </div>
+      <div class="chips">
+        <span class="chip-rel active" data-v="ALL" onclick="setReliability(this)">Toutes</span>
+        <span class="chip-rel" data-v="Certifiée" onclick="setReliability(this)">✓ Certifiée</span>
+        <span class="chip-rel" data-v="En validation" onclick="setReliability(this)">◑ En validation</span>
+        <span class="chip-rel" data-v="Non vérifiée" onclick="setReliability(this)">○ Non vérifiée</span>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+        <button class="btn btn-sm" style="background:#1D9E75;color:#EAF3DE;border-color:#1D9E75;gap:5px" onclick="toggleRAGChat()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          Assistant RAG
+        </button>
+        <div id="admin-tools" style="display:none;gap:6px">
+          <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
+          <button class="btn btn-sm" onclick="refreshData()">↻ Actualiser</button>
+        </div>
+      </div>
+  </div>
+
+  <div id="main">
+    <div style="display:flex;flex:1;overflow:hidden">
+
+        <!-- Graph -->
+        <div id="graph-wrap">
+          <canvas id="canvas"></canvas>
+          <div id="tooltip">
+            <div class="tt-name" id="tt-name"></div>
+            <div class="tt-desc" id="tt-desc"></div>
+            <div class="tt-pills" id="tt-pills"></div>
+          </div>
+          <div class="legend" id="legend"></div>
+          <div id="zoom-ctrl">
+            <button class="zoom-btn" onclick="zoom(1.2)">＋</button>
+            <button class="zoom-btn" onclick="zoom(0.83)">－</button>
+            <button class="zoom-btn" title="Réinitialiser vue" onclick="resetZoom()">⊙</button>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div id="sidebar">
+          <div id="panel">
+            <div class="empty-state">
+              <svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="6" y1="8.5" x2="6" y2="15.5"/><line x1="8.5" y1="18" x2="15.5" y2="18"/><line x1="18" y1="8.5" x2="18" y2="15.5"/></svg>
+              <span>Cliquez sur un nœud<br>pour afficher les détails</span>
+            </div>
+          </div>
+        </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajout / Édition Table -->
+<div class="overlay" id="modal-table">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-table-title">Nouvelle table</span>
+      <button class="close-btn" onclick="closeModal('modal-table')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nom de la table *</label>
+        <input id="f-name" placeholder="ex: FACT_VENTES">
+      </div>
+      <div class="form-group">
+        <label>Domaine métier *</label>
+        <select id="f-domain"></select>
+      </div>
+      <div class="form-group full">
+        <label>Description courte</label>
+        <input id="f-desc" placeholder="Résumé en une phrase">
+      </div>
+      <div class="form-group full">
+        <label>Description détaillée</label>
+        <textarea id="f-desc-long" placeholder="Contexte, périmètre, fréquence de mise à jour, source..."></textarea>
+      </div>
+      <div class="form-group">
+        <label>Fiabilité</label>
+        <select id="f-rel"></select>
+      </div>
+      <div class="form-group">
+        <label>Propriétaire (Owner)</label>
+        <input id="f-owner" placeholder="ex: Équipe Data Finance">
+      </div>
+      <div class="form-group">
+        <label>Fréquence de mise à jour</label>
+        <select id="f-freq">
+          <option value="">Non renseignée</option>
+          <option>Temps réel</option><option>Horaire</option><option>Quotidienne</option>
+          <option>Hebdomadaire</option><option>Mensuelle</option><option>Annuelle</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Source des données</label>
+        <input id="f-source" placeholder="ex: ERP SAP, SIRH...">
+      </div>
+      <div class="form-group full">
+        <label>Lien SharePoint / documentation</label>
+        <input id="f-sp" placeholder="https://...">
+      </div>
+      <div class="form-group full">
+        <label>Colonnes</label>
+        <div id="col-editor">
+          <div class="col-editor-head">
+            <span>Nom colonne</span><span>Type</span><span>Clé</span><span>Description</span><span></span>
+          </div>
+          <div id="col-rows"></div>
+          <button id="add-col-btn" onclick="addColRow()">＋ Ajouter une colonne</button>
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Note de modification (historique)</label>
+        <input id="f-note" placeholder="ex: Ajout colonne MONTANT_TTC">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-table')">Annuler</button>
+      <button class="btn btn-primary" id="modal-save-btn" onclick="saveTable()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── RAG CHAT TOGGLE BUTTON ── -->
+<button id="rag-chat-toggle" onclick="toggleRAGChat()" title="Assistant Data">
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
+  <span class="badge-count" id="rag-badge">0</span>
+</button>
+
+<!-- ── RAG CHAT PANEL ── -->
+<div id="rag-chat-panel">
+  <!-- Header -->
+  <div class="rag-head">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+    <span class="rag-head-title">Assistant Data CNPS</span>
+    <div class="rag-head-btns">
+      <button class="rag-icon-btn" onclick="ragNewConv()" title="Nouvelle conversation">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+      <button class="rag-icon-btn" onclick="toggleRAGChat()" title="Fermer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div class="rag-body">
+    <!-- Historique sidebar -->
+    <div class="rag-sidebar">
+      <div class="rag-sidebar-head">Historique</div>
+      <div id="rag-hist-list"></div>
+      <div style="flex:1"></div>
+      <button class="rag-new-btn" onclick="ragNewConv()">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nouveau
+      </button>
+    </div>
+
+    <!-- Zone principale -->
+    <div class="rag-main">
+      <div class="rag-msgs" id="rag-msgs">
+        <div class="rag-empty" id="rag-empty">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span style="font-weight:500;color:var(--text2)">Posez une question sur vos données</span>
+          <span style="font-size:11px">Le RAG identifie les tables à croiser<br>et les jointures nécessaires</span>
+          <div class="rag-quick-q" id="rag-quick-q"></div>
+        </div>
+      </div>
+
+      <!-- Suggestions dynamiques -->
+      <div class="rag-suggestions" id="rag-suggestions" style="display:none"></div>
+
+      <!-- Zone saisie -->
+      <div class="rag-input-area">
+        <div class="rag-api-row">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+          <select id="rag-provider" class="rag-api-provider" onchange="onProviderChange()">
+            <option value="local">🔍 Analyse locale</option>
+            <option value="claude">⚡ Claude (Anthropic)</option>
+            <option value="openai">🤖 OpenAI (GPT-4)</option>
+            <option value="mistral">🌊 Mistral AI</option>
+            <option value="ollama">🖥️ Ollama (local)</option>
+          </select>
+          <input id="rag-api-key" class="rag-api-key" type="password"
+            placeholder="Clé API..." style="display:none"
+            onchange="saveAPIKey()">
+          <input id="rag-ollama-url-chat" class="rag-api-key" type="text"
+            placeholder="http://localhost:11434" style="display:none"
+            onchange="saveAPIKey()">
+        </div>
+        <div id="rag-key-status" style="font-size:10px;color:var(--green);margin-bottom:5px;display:none">
+          ✓ Clé sauvegardée localement
+        </div>
+        <div class="rag-input-row">
+          <textarea id="rag-input" placeholder="Ex : Femmes des entreprises agricoles par agence..."
+            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRAGMsg()}"></textarea>
+          <button class="rag-send-btn" onclick="sendRAGMsg()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+        <div style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center">
+          Clé stockée dans votre navigateur uniquement · <span id="rag-model-label">Analyse locale sans LLM</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Confirmation suppression -->
+<div class="overlay" id="modal-delete">
+  <div class="modal" style="width:360px">
+    <div class="modal-title">Supprimer la table <button class="close-btn" onclick="closeModal('modal-delete')">✕</button></div>
+    <p style="font-size:13px;color:var(--text2);line-height:1.6">
+      Êtes-vous sûr de vouloir supprimer <strong id="del-name"></strong> ?<br>
+      Cette action est irréversible et supprimera aussi les colonnes associées.
+    </p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('modal-delete')">Annuler</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script>
+// ══════════════════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════════════════
+let STATE = {
+  tables: [], columns: [], history: [],
+  currentUser: null, isAdmin: false,
+  selectedId: null, editingId: null,
+  filter: { domain: 'ALL', reliability: 'ALL', search: '' },
+  zoom: { k: 1, x: 0, y: 0 },
+  sharepointMode: false   // passe à true si la connexion SP réussit
+};
+
+const DOMAIN_COLORS = {
+  'Prestation':      '#534AB7',
+  'Cotisation':      '#D85A30',
+  'Recouvrement':    '#1D9E75',
+  'Immatriculation': '#378ADD',
+  'Referentiel':     '#BA7517',
+};
+const REL_CONFIG = {
+  Certifiée:        { cls: 'pill-green', dot: '●', label: '✓ Certifiée' },
+  'En validation':  { cls: 'pill-amber', dot: '◑', label: '◑ En validation' },
+  'Non vérifiée':   { cls: 'pill-red',   dot: '○', label: '○ Non vérifiée' }
+};
+
+// ══════════════════════════════════════════════════════════════
+//  DONNÉES DÉMO (utilisées si SharePoint non disponible)
+// ══════════════════════════════════════════════════════════════
+const DEMO_TABLES = [
+  { id: 't1', Title: 'FACT_VENTES', Domain: 'Finance', Description: 'Table de faits des transactions commerciales mensuelles', DescriptionLong: 'Contient l\'ensemble des transactions de vente agrégées au mois. Alimentée quotidiennement depuis l\'ERP SAP via le pipeline ETL Finance. Périmètre : toutes les entités juridiques du groupe.', Reliability: 'Certifiée', Owner: 'Équipe Data Finance', Frequency: 'Quotidienne', Source: 'ERP SAP', Sharepoint: 'https://sharepoint.example.com/ventes', Usage: 87 },
+  { id: 't2', Title: 'DIM_CLIENT', Domain: 'Clients', Description: 'Référentiel clients avec informations de contact et segmentation', DescriptionLong: 'Dimension clients alimentée depuis le CRM Salesforce. Contient les informations d\'identification, de contact et de segmentation marketing. Mise à jour hebdomadaire.', Reliability: 'Certifiée', Owner: 'Équipe CRM', Frequency: 'Hebdomadaire', Source: 'Salesforce CRM', Sharepoint: 'https://sharepoint.example.com/clients', Usage: 72 },
+  { id: 't3', Title: 'DIM_PRODUIT', Domain: 'Référentiel', Description: 'Catalogue produits avec hiérarchie catégorie / sous-catégorie', DescriptionLong: 'Référentiel produits issu du PIM (Product Information Management). Contient la hiérarchie complète catégorie > sous-catégorie > produit ainsi que les prix de référence.', Reliability: 'Certifiée', Owner: 'Équipe Référentiels', Frequency: 'Mensuelle', Source: 'PIM interne', Sharepoint: 'https://sharepoint.example.com/produits', Usage: 65 },
+  { id: 't4', Title: 'DIM_DATE', Domain: 'Référentiel', Description: 'Calendrier fiscal et grégorien avec semaines, mois, trimestres', DescriptionLong: 'Table de dates statique couvrant 2010-2030. Contient le calendrier grégorien ET fiscal (exercice décalé avril-mars). Référence pour tous les faits temporels.', Reliability: 'Certifiée', Owner: 'Équipe Data Platform', Frequency: 'Annuelle', Source: 'Génération automatique', Sharepoint: 'https://sharepoint.example.com/dim-date', Usage: 90 },
+  { id: 't5', Title: 'FACT_RH', Domain: 'RH', Description: 'Données salariales et effectifs mensuels par département', DescriptionLong: 'Table de faits RH en cours de validation. Contient les salaires bruts, effectifs et indicateurs RH mensuels par département. Source : extraction SIRH mensuelle.', Reliability: 'En validation', Owner: 'Équipe RH Data', Frequency: 'Mensuelle', Source: 'SIRH Workday', Sharepoint: 'https://sharepoint.example.com/rh', Usage: 34 },
+  { id: 't6', Title: 'DIM_EMPLOYE', Domain: 'RH', Description: 'Référentiel des employés actifs et inactifs', DescriptionLong: 'Dimension employés synchronisée depuis Workday. Contient les informations d\'identification, de poste et d\'organisation pour tous les employés actifs et les sortants des 5 dernières années.', Reliability: 'En validation', Owner: 'Équipe RH Data', Frequency: 'Quotidienne', Source: 'SIRH Workday', Sharepoint: 'https://sharepoint.example.com/employes', Usage: 28 },
+  { id: 't7', Title: 'DIM_DEPARTEMENT', Domain: 'RH', Description: 'Structure organisationnelle des départements', DescriptionLong: 'Import manuel de l\'organigramme. En attente de connexion automatisée au SIRH. À utiliser avec précaution.', Reliability: 'Non vérifiée', Owner: 'Non assigné', Frequency: 'Manuelle', Source: 'Import Excel manuel', Sharepoint: '', Usage: 12 },
+  { id: 't8', Title: 'AGG_VENTES_MENS', Domain: 'Finance', Description: 'Agrégation mensuelle des ventes par région et produit', DescriptionLong: 'Table agrégée calculée à partir de FACT_VENTES. Optimisée pour le reporting mensuel. Contient les totaux HT/TTC, le nombre de transactions et les parts de marché par région.', Reliability: 'Certifiée', Owner: 'Équipe Data Finance', Frequency: 'Mensuelle', Source: 'Calculée depuis FACT_VENTES', Sharepoint: 'https://sharepoint.example.com/agg-ventes', Usage: 55 }
+];
+
+const DEMO_COLUMNS = [
+  {id:'c1',TableId:'t1',ColumnName:'ID_VENTE',DataType:'INT',KeyType:'PK',Description:'Identifiant unique de la transaction de vente'},
+  {id:'c2',TableId:'t1',ColumnName:'DATE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE (format YYYYMMDD)'},
+  {id:'c3',TableId:'t1',ColumnName:'CLIENT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_CLIENT'},
+  {id:'c4',TableId:'t1',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_PRODUIT'},
+  {id:'c5',TableId:'t1',ColumnName:'MONTANT_HT',DataType:'DECIMAL',KeyType:'',Description:'Montant hors taxes en euros'},
+  {id:'c6',TableId:'t1',ColumnName:'MONTANT_TTC',DataType:'DECIMAL',KeyType:'',Description:'Montant toutes taxes comprises en euros'},
+  {id:'c7',TableId:'t1',ColumnName:'QUANTITE',DataType:'INT',KeyType:'',Description:'Nombre d\'unités vendues'},
+  {id:'c8',TableId:'t2',ColumnName:'CLIENT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique client (clé métier)'},
+  {id:'c9',TableId:'t2',ColumnName:'NOM',DataType:'NVARCHAR',KeyType:'',Description:'Nom de famille ou raison sociale'},
+  {id:'c10',TableId:'t2',ColumnName:'PRENOM',DataType:'NVARCHAR',KeyType:'',Description:'Prénom (personnes physiques uniquement)'},
+  {id:'c11',TableId:'t2',ColumnName:'EMAIL',DataType:'VARCHAR',KeyType:'',Description:'Adresse email principale de contact'},
+  {id:'c12',TableId:'t2',ColumnName:'SEGMENT',DataType:'VARCHAR',KeyType:'',Description:'Segment marketing : Grand Compte / PME / Particulier'},
+  {id:'c13',TableId:'t3',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique produit'},
+  {id:'c14',TableId:'t3',ColumnName:'LIBELLE',DataType:'NVARCHAR',KeyType:'',Description:'Libellé commercial du produit'},
+  {id:'c15',TableId:'t3',ColumnName:'CATEGORIE',DataType:'VARCHAR',KeyType:'',Description:'Catégorie niveau 1 de la hiérarchie produit'},
+  {id:'c16',TableId:'t3',ColumnName:'PRIX_REF',DataType:'DECIMAL',KeyType:'',Description:'Prix de référence catalogue en euros HT'},
+  {id:'c17',TableId:'t4',ColumnName:'DATE_ID',DataType:'INT',KeyType:'PK',Description:'Clé de date au format YYYYMMDD'},
+  {id:'c18',TableId:'t4',ColumnName:'DATE_COMPLETE',DataType:'DATE',KeyType:'',Description:'Date complète au format ISO 8601'},
+  {id:'c19',TableId:'t4',ColumnName:'MOIS',DataType:'INT',KeyType:'',Description:'Numéro de mois (1-12)'},
+  {id:'c20',TableId:'t4',ColumnName:'TRIMESTRE',DataType:'INT',KeyType:'',Description:'Numéro de trimestre fiscal (1-4)'},
+  {id:'c21',TableId:'t5',ColumnName:'ID_RH',DataType:'INT',KeyType:'PK',Description:'Identifiant unique de la ligne RH mensuelle'},
+  {id:'c22',TableId:'t5',ColumnName:'EMPLOYE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_EMPLOYE'},
+  {id:'c23',TableId:'t5',ColumnName:'DATE_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE'},
+  {id:'c24',TableId:'t5',ColumnName:'SALAIRE_BRUT',DataType:'DECIMAL',KeyType:'',Description:'Salaire brut mensuel en euros'},
+  {id:'c25',TableId:'t6',ColumnName:'EMPLOYE_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique employé'},
+  {id:'c26',TableId:'t6',ColumnName:'NOM_COMPLET',DataType:'NVARCHAR',KeyType:'',Description:'Nom et prénom concatenés'},
+  {id:'c27',TableId:'t6',ColumnName:'DEPT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DEPARTEMENT'},
+  {id:'c28',TableId:'t7',ColumnName:'DEPT_ID',DataType:'INT',KeyType:'PK',Description:'Identifiant unique département'},
+  {id:'c29',TableId:'t7',ColumnName:'NOM_DEPT',DataType:'NVARCHAR',KeyType:'',Description:'Nom officiel du département'},
+  {id:'c30',TableId:'t8',ColumnName:'MOIS_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_DATE (premier jour du mois)'},
+  {id:'c31',TableId:'t8',ColumnName:'PRODUIT_ID',DataType:'INT',KeyType:'FK',Description:'Référence vers DIM_PRODUIT'},
+  {id:'c32',TableId:'t8',ColumnName:'TOTAL_HT',DataType:'DECIMAL',KeyType:'',Description:'Total des ventes HT du mois en euros'},
+  {id:'c33',TableId:'t8',ColumnName:'NB_TRANSACTIONS',DataType:'INT',KeyType:'',Description:'Nombre de transactions agrégées sur le mois'}
+];
+
+const DEMO_HISTORY = [
+  {TableId:'t1',Date:'2024-06-01',Note:'Ajout colonne MONTANT_TTC'},{TableId:'t1',Date:'2024-03-15',Note:'Migration vers nouveau schéma'},{TableId:'t1',Date:'2023-11-20',Note:'Création initiale'},
+  {TableId:'t2',Date:'2024-05-20',Note:'Ajout champ SEGMENT'},{TableId:'t2',Date:'2024-01-10',Note:'Nettoyage doublons'},
+  {TableId:'t3',Date:'2024-04-12',Note:'Mise à jour catalogue Q2'},{TableId:'t3',Date:'2023-12-01',Note:'Import ERP initial'},
+  {TableId:'t4',Date:'2024-01-01',Note:'Extension 2024-2025'},
+  {TableId:'t5',Date:'2024-05-30',Note:'Livraison initiale — en cours de validation'},
+  {TableId:'t6',Date:'2024-05-01',Note:'Synchronisation SIRH Workday'},
+  {TableId:'t7',Date:'2024-02-01',Note:'Import manuel organigramme'},
+  {TableId:'t8',Date:'2024-06-01',Note:'Recalcul Q1-Q2'},{TableId:'t8',Date:'2024-01-15',Note:'Création pour reporting mensuel'}
+];
+
+// ══════════════════════════════════════════════════════════════
+//  SHAREPOINT API
+// ══════════════════════════════════════════════════════════════
+async function spGet(list) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=500`;
+  const r = await fetch(url, { headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() } });
+  if (r.status === 404) throw new Error(`LIST_NOT_FOUND:${list}`);
+  if (!r.ok) throw new Error(`SP_ERROR:${r.status}`);
+  const d = await r.json();
+  if (d.error) throw new Error(`LIST_NOT_FOUND:${list}`);
+  return d.d.results;
+}
+async function spPost(list, body) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`;
+  const r = await fetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() },
+    body: JSON.stringify(body)
+  });
+  if (!r.ok) throw new Error('SP POST error');
+  return (await r.json()).d;
+}
+async function spPatch(list, id, body) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
+  await fetch(url, {
+    method: 'POST',
+    headers: { Accept: 'application/json;odata=verbose', 'Content-Type': 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*', 'X-HTTP-Method': 'MERGE' },
+    body: JSON.stringify(body)
+  });
+}
+async function spDelete(list, id) {
+  const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
+  await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*' } });
+}
+let _digest = null;
+async function getDigest() {
+  if (_digest) return _digest;
+  const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/contextinfo`, { method: 'POST', headers: { Accept: 'application/json;odata=verbose' } });
+  const d = await r.json();
+  _digest = d.d.GetContextWebInformation.FormDigestValue;
+  setTimeout(() => { _digest = null; }, 1680000);
+  return _digest;
+}
+async function getCurrentUser() {
+  const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/web/currentuser`, { headers: { Accept: 'application/json;odata=verbose' } });
+  const d = await r.json();
+  return d.d;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════════════
+async function init() {
+  // ── Remplir les selects depuis CONFIG ──
+  const ds = document.getElementById('domain-chips');
+  CONFIG.DOMAINS.forEach(d => {
+    const ch = document.createElement('span');
+    ch.className = 'chip'; ch.dataset.v = d;
+    ch.textContent = d; ch.onclick = function(){ setDomain(this); };
+    ds.appendChild(ch);
+  });
+  const fd = document.getElementById('f-domain');
+  CONFIG.DOMAINS.forEach(d => { fd.innerHTML += `<option>${d}</option>`; });
+  const fr = document.getElementById('f-rel');
+  CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
+
+  // ── Branchement selon DATA_SOURCE ──
+  if (CONFIG.DATA_SOURCE === 'csv') {
+    setLoader('Chargement des données CSV...');
+    document.getElementById('user-name').textContent = 'Data Catalogue';
+    try {
+      await loadFromCSV();
+      loadPersistedUsage();
+    } catch(e) {
+      showStatusError('⚠️ Erreur CSV : ' + e.message + ' — Vérifiez que data/tables.csv existe sur GitHub');
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
+    }
+  } else {
+    // ── Mode SharePoint ──
+    setLoader('Chargement du catalogue CNPS...');
+    try {
+      const user = await getCurrentUser();
+      STATE.currentUser = user;
+      STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
+      document.getElementById('user-name').textContent = user.Title || user.Email;
+      if (STATE.isAdmin) {
+        document.getElementById('admin-badge').style.display = 'inline';
+        const at = document.getElementById('admin-tools');
+        if (at) at.style.display = 'flex';
+      }
+      STATE.sharepointMode = true;
+      setLoader('Chargement du catalogue...');
+      await loadFromSharePoint();
+      loadPersistedUsage();
+    } catch(e) {
+      const isOnSP = window.location.hostname.includes('sharepoint.com');
+      const errMsg = e.message || '';
+      if (errMsg.startsWith('LIST_NOT_FOUND:')) {
+        document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+        showStatusError(`⚠️ Liste introuvable : "${errMsg.split(':')[1]}" — vérifiez le nom dans CONFIG`);
+        STATE.tables = []; STATE.columns = []; STATE.history = [];
+      } else {
+        // Fallback mode démo
+        document.getElementById('user-name').textContent = 'Mode démo';
+        STATE.tables = DEMO_TABLES;
+        STATE.columns = DEMO_COLUMNS;
+        STATE.history = DEMO_HISTORY;
+        const demoDomains = ['Finance','RH','Clients','Référentiel'];
+        STATE.tables = DEMO_TABLES.map(t => ({
+          ...t, Domain: CONFIG.DOMAINS[demoDomains.indexOf(t.Domain) % CONFIG.DOMAINS.length] || t.Domain
+        }));
+        loadPersistedUsage();
+        showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
+        const at = document.getElementById('admin-tools');
+        if (at) at.style.display = 'flex';
+        STATE.isAdmin = true;
+        document.getElementById('admin-badge').style.display = 'inline';
+      }
+    }
+  }
+
+  hideLoader();
+  setTimeout(() => {
+    initGraph();
+    if (STATE.tables.length === 0) showEmptyState();
+  }, 50);
+}
+
+async function loadFromSharePoint() {
+  const [tables, cols, hist] = await Promise.all([
+    spGet(CONFIG.LIST_TABLES),
+    spGet(CONFIG.LIST_COLUMNS),
+    spGet(CONFIG.LIST_HISTORY)
+  ]);
+  // Hide any previous error
+  document.getElementById('status-bar').style.display = 'none';
+  STATE.tables = tables.map(t => ({
+    id: String(t.Id), Title: t.Titre, Domain: t.Domaine, Description: t.Description,
+    DescriptionLong: t.DescriptionLongue || '', Reliability: t.Fiabilite,
+    Owner: t.Proprietaire || '', Frequency: t.Frequence || '', Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || '', Usage: t.NombreUsages || 0
+  }));
+  STATE.columns = cols.map(c => ({
+    id: String(c.Id), TableId: String(c.IdTable),
+    ColumnName: c.NomColonne, DataType: c.TypeDonnee,
+    KeyType: c.TypeCle || '', Description: c.Description || ''
+  }));
+  STATE.history = hist.map(h => ({ TableId: String(h.IdTable), Date: h.DateModification?.split('T')[0] || '', Note: h.Note }));
+}
+
+async function refreshData() {
+  if (!STATE.sharepointMode) return;
+  setLoader('Actualisation...'); document.getElementById('app').style.display = 'none';
+  try { await loadFromSharePoint(); } catch(e) { alert('Erreur de chargement'); }
+  hideLoader(); document.getElementById('app').style.display = 'flex';
+  setTimeout(initGraph, 50);
+}
+
+function showStatusWarn(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--amber-light)';
+  bar.style.color = 'var(--amber-dark)';
+  bar.style.display = 'block';
+}
+function showStatusError(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--red-light)';
+  bar.style.color = 'var(--red-dark)';
+  bar.style.display = 'block';
+}
+function showStatusOk(msg) {
+  const bar = document.getElementById('status-bar');
+  bar.textContent = msg;
+  bar.style.background = 'var(--green-light)';
+  bar.style.color = 'var(--green-dark)';
+  bar.style.display = 'block';
+  setTimeout(() => { bar.style.display = 'none'; }, 4000);
+}
+
+// ══════════════════════════════════════════════════════════════
+//  CHARGEMENT CSV
+// ══════════════════════════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split(/
+?
+/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).filter(l => l.trim()).map(line => {
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; }
+      else if (c === ',' && !inQ) { fields.push(cur.trim().replace(/^"|"$/g,'')); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim().replace(/^"|"$/g,''));
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = fields[i] !== undefined ? fields[i] : ''; });
+    return obj;
+  });
+}
+
+async function fetchCSV(filename) {
+  const base = CONFIG.DATA_BASE_URL || 'https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data';
+  const url = base + '/' + filename + '?v=' + Date.now();
+  const r = await fetch(url);
+  if (!r.ok) throw new Error('CSV_NOT_FOUND:' + filename + ' (' + r.status + ')');
+  return parseCSV(await r.text());
+}
+
+async function loadFromCSV() {
+  setLoader('Chargement tables...');
+  const tablesRaw = await fetchCSV('tables.csv');
+  setLoader('Chargement colonnes...');
+  const colsRaw = await fetchCSV('colonnes.csv').catch(() => []);
+  setLoader('Chargement historique...');
+  const histRaw = await fetchCSV('historique.csv').catch(() => []);
+
+  STATE.tables = tablesRaw.map((t, i) => ({
+    id: t.Id || String(i + 1),
+    Title: t.Titre || t.Title || t.NomTable || 'Table ' + (i+1),
+    Domain: t.Domaine || t.Domain || CONFIG.DOMAINS[0] || '',
+    Description: t.Description || '',
+    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
+    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
+    Owner: t.Proprietaire || t.Owner || '',
+    Frequency: t.Frequence || t.Frequency || '',
+    Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
+    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
+  }));
+
+  STATE.columns = colsRaw.map((c, i) => ({
+    id: String(i + 1),
+    TableId: c.IdTable || c.TableId || '',
+    ColumnName: c.NomColonne || c.ColumnName || '',
+    DataType: c.TypeDonnee || c.DataType || '',
+    KeyType: c.TypeCle || c.KeyType || '',
+    Description: c.Description || ''
+  }));
+
+  STATE.history = histRaw.map(h => ({
+    TableId: h.IdTable || h.TableId || '',
+    Date: h.DateModification || h.Date || '',
+    Note: h.Note || ''
+  }));
+
+  document.getElementById('status-bar').style.display = 'none';
+}
+
+function setLoader(msg) { document.getElementById('loader-msg').textContent = msg; document.getElementById('loader').style.display = 'flex'; }
+function hideLoader() { document.getElementById('loader').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }
+
+// ══════════════════════════════════════════════════════════════
+//  GRAPH ENGINE
+// ══════════════════════════════════════════════════════════════
+let sim, gNodes, gLinks, canvasCtx;
+
+function buildLinks() {
+  // Détecter automatiquement les liaisons via les colonnes FK homonymes
+  const fkMap = {};
+  STATE.columns.forEach(c => {
+    if (!c.KeyType) return;
+    if (!fkMap[c.ColumnName]) fkMap[c.ColumnName] = {};
+    if (c.KeyType === 'PK') fkMap[c.ColumnName].pk = c.TableId;
+    else if (c.KeyType === 'FK') {
+      if (!fkMap[c.ColumnName].fks) fkMap[c.ColumnName].fks = [];
+      fkMap[c.ColumnName].fks.push(c.TableId);
+    }
+  });
+  const links = [];
+  Object.entries(fkMap).forEach(([key, v]) => {
+    if (v.pk && v.fks) {
+      v.fks.forEach(fk => {
+        if (fk !== v.pk) links.push({ source: fk, target: v.pk, key });
+      });
+    }
+  });
+  return links;
+}
+
+function initGraph() {
+  const canvas = document.getElementById('canvas');
+  const wrap = document.getElementById('graph-wrap');
+  // Ensure wrap has actual height (fix for iframe contexts)
+  // If not rendered yet, retry after a frame
+  let wH = wrap.clientHeight;
+  let wW = wrap.clientWidth;
+  if (wH < 10 || wW < 10) {
+    setTimeout(initGraph, 80);
+    return;
+  }
+  canvas.width = wW * devicePixelRatio;
+  canvas.height = wH * devicePixelRatio;
+  canvas.style.width = wW + 'px';
+  canvas.style.height = wH + 'px';
+  canvasCtx = canvas.getContext('2d');
+  canvasCtx.scale(devicePixelRatio, devicePixelRatio);
+  const W = wW, H = wH;
+
+  gNodes = STATE.tables.map(t => ({
+    ...t, x: W/2 + (Math.random()-.5)*300, y: H/2 + (Math.random()-.5)*300, vx:0, vy:0
+  }));
+  const nodeMap = Object.fromEntries(gNodes.map(n => [n.id, n]));
+  const rawLinks = buildLinks();
+  gLinks = rawLinks.filter(l => nodeMap[l.source] && nodeMap[l.target])
+    .map(l => ({ ...l, source: nodeMap[l.source], target: nodeMap[l.target] }));
+
+  sim = d3.forceSimulation(gNodes)
+    .force('link', d3.forceLink(gLinks).distance(d => 80 + 100*(1-(d.source.Usage+d.target.Usage)/200)).strength(.35))
+    .force('charge', d3.forceManyBody().strength(-280))
+    .force('center', d3.forceCenter(W/2, H/2))
+    .force('collision', d3.forceCollide(d => nodeR(d)+8))
+    .on('tick', () => drawGraph(W, H));
+
+  buildLegend();
+  setupCanvasEvents(canvas, W, H);
+}
+
+function nodeR(n) { return 16 + (n.Usage || 0) * .13; }
+function visible(n) {
+  const { domain, reliability, search } = STATE.filter;
+  return (domain === 'ALL' || n.Domain === domain)
+    && (reliability === 'ALL' || n.Reliability === reliability)
+    && (!search || n.Title.toLowerCase().includes(search) || n.Description.toLowerCase().includes(search));
+}
+
+function drawGraph(W, H) {
+  const ctx = canvasCtx;
+  ctx.save();
+  ctx.clearRect(0, 0, W, H);
+  ctx.translate(STATE.zoom.x, STATE.zoom.y);
+  ctx.scale(STATE.zoom.k, STATE.zoom.k);
+
+  // Liens
+  gLinks.forEach(l => {
+    const vs = visible(l.source), vt = visible(l.target);
+    ctx.beginPath();
+    ctx.moveTo(l.source.x, l.source.y);
+    ctx.lineTo(l.target.x, l.target.y);
+    ctx.strokeStyle = vs && vt ? 'rgba(136,135,128,.45)' : 'rgba(136,135,128,.07)';
+    ctx.lineWidth = 1.2; ctx.setLineDash([4,4]); ctx.stroke(); ctx.setLineDash([]);
+    if (vs && vt) {
+      const mx = (l.source.x+l.target.x)/2, my = (l.source.y+l.target.y)/2;
+      ctx.font = '9px monospace'; ctx.fillStyle = 'rgba(136,135,128,.7)';
+      ctx.textAlign = 'center'; ctx.fillText(l.key, mx, my - 4);
+    }
+  });
+
+  // Nœuds
+  gNodes.forEach(n => {
+    const vis = visible(n);
+    const r = nodeR(n);
+    const color = DOMAIN_COLORS[n.Domain] || '#888';
+    const isSelected = n.id === STATE.selectedId;
+    ctx.globalAlpha = vis ? 1 : .1;
+
+    if (isSelected) {
+      ctx.beginPath(); ctx.arc(n.x, n.y, r+6, 0, 2*Math.PI);
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.stroke();
+    }
+
+    // Arc d'usage
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2*Math.PI);
+    ctx.fillStyle = color + '1a'; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(n.x, n.y - r);
+    ctx.arc(n.x, n.y, r, -Math.PI/2, -Math.PI/2 + 2*Math.PI*(n.Usage||0)/100);
+    ctx.fillStyle = color + '55'; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, 2*Math.PI);
+    ctx.strokeStyle = color; ctx.lineWidth = isSelected ? 2 : 1; ctx.stroke();
+
+    // Label
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    ctx.fillStyle = isDark ? '#e8e6dc' : '#2c2c2a';
+    ctx.font = `${isSelected?'500 ':''}10.5px system-ui`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const label = n.Title.length > 11 ? n.Title.slice(0,10)+'…' : n.Title;
+    ctx.fillText(label, n.x, n.y);
+
+    // Badge fiabilité
+    const relDot = { Certifiée:'●', 'En validation':'◑', 'Non vérifiée':'○' }[n.Reliability] || '○';
+    const relCol = { Certifiée:'#3B6D11', 'En validation':'#854F0B', 'Non vérifiée':'#A32D2D' }[n.Reliability] || '#888';
+    ctx.font = '9px sans-serif'; ctx.fillStyle = relCol;
+    ctx.fillText(relDot, n.x + r*.65, n.y - r*.65);
+
+    // Score usage
+    ctx.font = 'bold 9px system-ui'; ctx.fillStyle = color;
+    ctx.fillText(n.Usage || 0, n.x, n.y + r + 10);
+
+    ctx.globalAlpha = 1;
+  });
+  ctx.restore();
+}
+
+function buildLegend() {
+  const leg = document.getElementById('legend');
+  const domains = [...new Set(STATE.tables.map(t => t.Domaine))];
+  leg.innerHTML = domains.map(d => `<div class="leg-row"><span class="leg-dot" style="background:${DOMAIN_COLORS[d]||'#888'}"></span>${d}</div>`).join('');
+}
+
+// ── Événements canvas ──
+let dragging = null;
+function setupCanvasEvents(canvas, W, H) {
+  canvas.addEventListener('mousemove', e => {
+    const [mx, my] = toWorld(e, canvas);
+    const n = hitTest(mx, my);
+    canvas.style.cursor = n ? 'pointer' : 'default';
+    const tt = document.getElementById('tooltip');
+    if (n && visible(n)) {
+      tt.style.display = 'block';
+      tt.style.left = (e.offsetX + 16) + 'px'; tt.style.top = (e.offsetY - 12) + 'px';
+      const rel = REL_CONFIG[n.Reliability] || REL_CONFIG['Non vérifiée'];
+      const cols = STATE.columns.filter(c => c.TableId === n.id);
+      document.getElementById('tt-name').textContent = n.Title;
+      document.getElementById('tt-desc').textContent = n.Description;
+      document.getElementById('tt-pills').innerHTML =
+        `<span class="pill ${rel.cls}">${rel.dot} ${n.Reliability}</span>` +
+        `<span class="pill pill-gray">${cols.length} colonnes</span>` +
+        `<span class="pill pill-purple">Usage : ${n.Usage}</span>` +
+        (n.Owner ? `<span class="pill pill-gray">${n.Owner}</span>` : '');
+      if (dragging) { dragging.fx = mx; dragging.fy = my; }
+    } else { tt.style.display = 'none'; if (dragging) { dragging.fx = mx; dragging.fy = my; } }
+  });
+
+  canvas.addEventListener('click', e => {
+    const [mx, my] = toWorld(e, canvas);
+    const n = hitTest(mx, my);
+    if (n && visible(n)) {
+      n.Usage = Math.min((n.Usage||0)+1, 99);
+      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
+      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      STATE.selectedId = n.id;
+      renderPanel(n);
+    }
+  });
+
+  canvas.addEventListener('mousedown', e => {
+    const [mx, my] = toWorld(e, canvas);
+    dragging = hitTest(mx, my);
+    if (dragging) sim.alphaTarget(.3).restart();
+  });
+  canvas.addEventListener('mouseup', () => {
+    if (dragging) { dragging.fx = null; dragging.fy = null; }
+    dragging = null; sim.alphaTarget(0);
+  });
+  canvas.addEventListener('mouseleave', () => { document.getElementById('tooltip').style.display = 'none'; });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1.1 : 0.9;
+    STATE.zoom.k = Math.max(.2, Math.min(4, STATE.zoom.k * factor));
+    sim.alpha(.1).restart();
+  }, { passive: false });
+}
+
+function toWorld(e, canvas) {
+  const r = canvas.getBoundingClientRect();
+  return [(e.clientX-r.left-STATE.zoom.x)/STATE.zoom.k, (e.clientY-r.top-STATE.zoom.y)/STATE.zoom.k];
+}
+function hitTest(mx, my) { return gNodes.find(n => Math.hypot(n.x-mx, n.y-my) < nodeR(n)+4); }
+function zoom(f) { STATE.zoom.k = Math.max(.2, Math.min(4, STATE.zoom.k*f)); sim.alpha(.1).restart(); }
+function resetZoom() { STATE.zoom = {k:1,x:0,y:0}; sim.alpha(.3).restart(); }
+
+// ── Filtres ──
+function onSearch(v) { STATE.filter.search = v.trim().toLowerCase(); sim.alpha(.1).restart(); }
+function setDomain(el) {
+  document.querySelectorAll('#domain-chips .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); STATE.filter.domain = el.dataset.v; sim.alpha(.1).restart();
+}
+function setReliability(el) {
+  document.querySelectorAll('.chip-rel').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active'); STATE.filter.reliability = el.dataset.v; sim.alpha(.1).restart();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  PANNEAU DE DÉTAIL
+// ══════════════════════════════════════════════════════════════
+function showEmptyState() {
+  document.getElementById('panel').innerHTML = `
+    <div class="empty-state">
+      <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4">
+        <circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/>
+        <circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/>
+      </svg>
+      <span>Catalogue vide</span>
+      <span style="font-size:11px;color:var(--text3);max-width:200px;text-align:center;line-height:1.5">
+        SharePoint est connecté mais aucune table n'a encore été ajoutée.${STATE.isAdmin ? '<br><br>Cliquez sur <b>+ Nouvelle table</b> pour commencer.' : ''}
+      </span>
+    </div>`;
+}
+function renderPanel(node) {
+  const cols = STATE.columns.filter(c => c.TableId === node.id);
+  const hist = STATE.history.filter(h => h.TableId === node.id).sort((a,b)=>b.Date.localeCompare(a.Date));
+  const rel = REL_CONFIG[node.Reliability] || REL_CONFIG['Non vérifiée'];
+  const color = DOMAIN_COLORS[node.Domain] || '#888';
+  const maxUsage = Math.max(...STATE.tables.map(t=>t.Usage||0), 1);
+
+  // Liens (tables reliées)
+  const relatedLinks = gLinks.filter(l=>l.source.id===node.id||l.target.id===node.id);
+  const related = relatedLinks.map(l=>({ t: l.source.id===node.id?l.target:l.source, key: l.key }));
+
+  document.getElementById('panel').innerHTML = `
+    <div class="panel-head">
+      <div class="node-icon" style="background:${color}1a;color:${color}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+      </div>
+      <div>
+        <div class="panel-title">${node.Title}</div>
+        <div class="panel-sub">${node.Domain}${node.Owner ? ' · ' + node.Owner : ''}</div>
+      </div>
+    </div>
+
+    <span class="pill ${rel.cls}">${rel.dot} ${node.Reliability}</span>
+    ${node.Frequency ? `<span class="pill pill-gray" style="margin-left:4px">${node.Frequency}</span>` : ''}
+    ${node.Source ? `<span class="pill pill-gray" style="margin-left:4px">📥 ${node.Source}</span>` : ''}
+
+    <div style="margin-top:10px;font-size:12px;color:var(--text2);line-height:1.55">${node.Description}</div>
+    ${node.DescriptionLong ? `<div style="margin-top:6px;font-size:11.5px;color:var(--text3);line-height:1.55;padding-top:6px;border-top:0.5px solid var(--border)">${node.DescriptionLong}</div>` : ''}
+
+    <div class="sec-label">Popularité d'usage</div>
+    <div class="usage-row">
+      <div class="usage-bar"><div class="usage-fill" style="width:${Math.round((node.Usage||0)/maxUsage*100)}%;background:${color}"></div></div>
+      <span class="usage-num" style="color:${color}">${node.Usage||0}</span>
+    </div>
+
+    <div class="sec-label">Colonnes (${cols.length})</div>
+    <div style="max-height:200px;overflow-y:auto;border:0.5px solid var(--border);border-radius:var(--r-md);overflow:hidden">
+      <table class="col-table">
+        <thead><tr><th>Nom</th><th>Type</th><th>Clé</th><th>Description</th></tr></thead>
+        <tbody>
+          ${cols.length ? cols.map(c=>`
+            <tr>
+              <td class="col-name">${c.ColumnName}</td>
+              <td><span class="type-badge">${c.DataType}</span></td>
+              <td>${c.KeyType ? `<span class="key-badge">${c.KeyType}</span>` : ''}</td>
+              <td class="col-desc-cell">${c.Description || '<span style="color:var(--text3)">—</span>'}</td>
+            </tr>`).join('') : `<tr><td colspan="4" style="color:var(--text3);text-align:center;padding:10px;font-size:12px">Aucune colonne renseignée</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+
+    ${related.length ? `
+    <div class="sec-label">Tables liées (${related.length})</div>
+    <div>${related.map(({t,key})=>`
+      <div class="link-item" onclick="selectTable('${t.id}')">
+        <span style="width:8px;height:8px;border-radius:50%;background:${DOMAIN_COLORS[t.Domaine]||'#888'};flex-shrink:0"></span>
+        <span style="font-size:12px">${t.Title}</span>
+        <span style="font-size:11px;color:var(--text2)">${t.Domaine}</span>
+        <span class="link-key">${key}</span>
+      </div>`).join('')}
+    </div>` : ''}
+
+    ${hist.length ? `
+    <div class="sec-label">Historique (${hist.length})</div>
+    <div>${hist.map(h=>`<div class="hist-item"><span class="hist-date">${h.Date}</span><span class="hist-msg">${h.Note}</span></div>`).join('')}</div>
+    ` : ''}
+
+    <div class="action-row">
+      ${node.Sharepoint ? `<button class="btn btn-primary" onclick="window.open('${node.Sharepoint}','_blank')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        SharePoint
+      </button>` : ''}
+      <button class="btn" onclick="exportTable('${node.id}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exporter JSON
+      </button>
+      ${STATE.isAdmin ? `
+        <button class="btn" onclick="openEditModal('${node.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Modifier
+        </button>
+        <button class="btn btn-danger" onclick="openDeleteModal('${node.id}')">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+          Supprimer
+        </button>` : ''}
+    </div>
+  `;
+}
+
+function selectTable(id) {
+  const n = gNodes.find(n=>n.id===id);
+  if (n) { n.Usage = Math.min((n.Usage||0)+1,99); STATE.selectedId=id; renderPanel(n); }
+}
+
+function exportTable(id) {
+  const t = STATE.tables.find(t=>t.id===id);
+  const cols = STATE.columns.filter(c=>c.TableId===id);
+  const hist = STATE.history.filter(h=>h.TableId===id);
+  const blob = new Blob([JSON.stringify({table:t,columns:cols,history:hist},null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`${t.Title}.json`; a.click();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  MODAL ADMIN — AJOUT / ÉDITION
+// ══════════════════════════════════════════════════════════════
+function openAddModal() {
+  STATE.editingId = null;
+  document.getElementById('modal-table-title').textContent = 'Nouvelle table';
+  document.getElementById('modal-save-btn').textContent = 'Ajouter';
+  ['f-name','f-desc','f-desc-long','f-owner','f-sp','f-note'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-domain').value = CONFIG.DOMAINS[0];
+  document.getElementById('f-rel').value = 'En validation';
+  document.getElementById('f-freq').value = '';
+  document.getElementById('col-rows').innerHTML = '';
+  addColRow();
+  openModal('modal-table');
+}
+
+function openEditModal(id) {
+  STATE.editingId = id;
+  const t = STATE.tables.find(t=>t.id===id);
+  const cols = STATE.columns.filter(c=>c.TableId===id);
+  document.getElementById('modal-table-title').textContent = 'Modifier ' + t.Title;
+  document.getElementById('modal-save-btn').textContent = 'Enregistrer';
+  document.getElementById('f-name').value = t.Title;
+  document.getElementById('f-desc').value = t.Description || '';
+  document.getElementById('f-desc-long').value = t.DescriptionLongue || '';
+  document.getElementById('f-domain').value = t.Domaine;
+  document.getElementById('f-rel').value = t.Fiabilite;
+  document.getElementById('f-owner').value = t.Proprietaire || '';
+  document.getElementById('f-freq').value = t.Frequence || '';
+  document.getElementById('f-source').value = t.Source || '';
+  document.getElementById('f-sp').value = t.LienSharePoint || '';
+  document.getElementById('f-note').value = '';
+  document.getElementById('col-rows').innerHTML = '';
+  cols.forEach(c => addColRow(c));
+  if (!cols.length) addColRow();
+  openModal('modal-table');
+}
+
+function addColRow(col = {}) {
+  const typeOpts = CONFIG.COLUMN_TYPES.map(t=>`<option${col.DataType===t?' selected':''}>${t}</option>`).join('');
+  const div = document.createElement('div'); div.className = 'col-editor-row';
+  div.innerHTML = `
+    <input type="text" placeholder="NOM_COL" value="${col.ColumnName||''}" class="cr-name">
+    <select class="cr-type">${typeOpts}</select>
+    <select class="cr-key">
+      <option value="">—</option>
+      <option${col.KeyType==='PK'?' selected':''}>PK</option>
+      <option${col.KeyType==='FK'?' selected':''}>FK</option>
+    </select>
+    <input type="text" placeholder="Description de la variable" value="${col.Description||''}" class="cr-desc">
+    <button class="col-del" onclick="this.closest('.col-editor-row').remove()" title="Supprimer">✕</button>`;
+  document.getElementById('col-rows').appendChild(div);
+}
+
+async function saveTable() {
+  if (!STATE.isAdmin) return;
+  const name = document.getElementById('f-name').value.trim();
+  if (!name) { alert('Nom de la table requis'); return; }
+  const note = document.getElementById('f-note').value.trim();
+  const today = new Date().toISOString().split('T')[0];
+
+  const colRows = document.querySelectorAll('.col-editor-row');
+  const newCols = Array.from(colRows).map(r => ({
+    ColumnName: r.querySelector('.cr-name').value.trim(),
+    DataType: r.querySelector('.cr-type').value,
+    KeyType: r.querySelector('.cr-key').value,
+    Description: r.querySelector('.cr-desc').value.trim()
+  })).filter(c => c.ColumnName);
+
+  const tableData = {
+    Title: name, Domain: document.getElementById('f-domain').value,
+    Description: document.getElementById('f-desc').value.trim(),
+    DescriptionLong: document.getElementById('f-desc-long').value.trim(),
+    Reliability: document.getElementById('f-rel').value,
+    Owner: document.getElementById('f-owner').value.trim(),
+    Frequency: document.getElementById('f-freq').value,
+    Source: document.getElementById('f-source').value.trim(),
+    Sharepoint: document.getElementById('f-sp').value.trim()
+  };
+  // Noms des colonnes SharePoint en français
+  const tableDataSP = {
+    Titre: tableData.Title,
+    Domaine: tableData.Domain,
+    Description: tableData.Description,
+    DescriptionLongue: tableData.DescriptionLong,
+    Fiabilite: tableData.Reliability,
+    Proprietaire: tableData.Owner,
+    Frequence: tableData.Frequency,
+    Source: tableData.Source,
+    LienSharePoint: tableData.Sharepoint
+  };
+
+  closeModal('modal-table');
+  setLoader('Enregistrement...');
+
+  try {
+    if (STATE.sharepointMode) {
+      if (STATE.editingId) {
+        await spPatch(CONFIG.LIST_TABLES, STATE.editingId, tableDataSP);
+        const oldCols = STATE.columns.filter(c=>c.TableId===STATE.editingId);
+        for (const oc of oldCols) await spDelete(CONFIG.LIST_COLUMNS, oc.id);
+        for (const nc of newCols) await spPost(CONFIG.LIST_COLUMNS, { NomColonne: nc.ColumnName, TypeDonnee: nc.DataType, TypeCle: nc.KeyType, Description: nc.Description, IdTable: parseInt(STATE.editingId) });
+        if (note) await spPost(CONFIG.LIST_HISTORY, { IdTable: parseInt(STATE.editingId), DateModification: today, Note: note });
+        await loadFromSharePoint();
+      } else {
+        const created = await spPost(CONFIG.LIST_TABLES, { ...tableDataSP, NombreUsages: 0 });
+        const newId = String(created.Id);
+        for (const nc of newCols) await spPost(CONFIG.LIST_COLUMNS, { NomColonne: nc.ColumnName, TypeDonnee: nc.DataType, TypeCle: nc.KeyType, Description: nc.Description, IdTable: parseInt(newId) });
+        await spPost(CONFIG.LIST_HISTORY, { IdTable: parseInt(newId), DateModification: today, Note: note || 'Création de la table' });
+        await loadFromSharePoint();
+      }
+    } else {
+      // Mode démo
+      if (STATE.editingId) {
+        const idx = STATE.tables.findIndex(t=>t.id===STATE.editingId);
+        STATE.tables[idx] = { ...STATE.tables[idx], ...tableData };
+        STATE.columns = STATE.columns.filter(c=>c.TableId!==STATE.editingId);
+        newCols.forEach((c,i) => STATE.columns.push({id:`c_new_${i}`,TableId:STATE.editingId,...c}));
+        if (note) STATE.history.unshift({TableId:STATE.editingId,Date:today,Note:note});
+      } else {
+        const newId = 't_' + Date.now();
+        STATE.tables.push({ id: newId, ...tableData, Usage: 0 });
+        newCols.forEach((c,i) => STATE.columns.push({id:`c_n_${i}`,TableId:newId,...c}));
+        STATE.history.unshift({TableId:newId,Date:today,Note:note||'Création de la table'});
+      }
+    }
+  } catch(e) { alert('Erreur lors de l\'enregistrement : ' + e.message); }
+
+  hideLoader();
+  sim.stop();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('app').style.display = 'flex';
+  setTimeout(initGraph, 50);
+}
+
+// ── Suppression ──
+let deleteTargetId = null;
+function openDeleteModal(id) {
+  deleteTargetId = id;
+  const t = STATE.tables.find(t=>t.id===id);
+  document.getElementById('del-name').textContent = t.Title;
+  openModal('modal-delete');
+}
+async function confirmDelete() {
+  if (!STATE.isAdmin || !deleteTargetId) return;
+  closeModal('modal-delete'); setLoader('Suppression...');
+  try {
+    if (STATE.sharepointMode) {
+      const oldCols = STATE.columns.filter(c=>c.TableId===deleteTargetId);
+      for (const c of oldCols) await spDelete(CONFIG.LIST_COLUMNS, c.id);
+      await spDelete(CONFIG.LIST_TABLES, deleteTargetId);
+      await loadFromSharePoint();
+    } else {
+      STATE.tables = STATE.tables.filter(t=>t.id!==deleteTargetId);
+      STATE.columns = STATE.columns.filter(c=>c.TableId!==deleteTargetId);
+      STATE.history = STATE.history.filter(h=>h.TableId!==deleteTargetId);
+    }
+    STATE.selectedId = null;
+    document.getElementById('panel').innerHTML = `<div class="empty-state"><svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".4"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="18" r="2.5"/></svg><span>Table supprimée</span></div>`;
+  } catch(e) { alert('Erreur suppression : ' + e.message); }
+  hideLoader(); setTimeout(initGraph, 50); deleteTargetId = null;
+}
+
+// ── Utils modals ──
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+let _resizeTimer;
+function debouncedInitGraph() {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => { if(sim){ sim.stop(); initGraph(); } }, 120);
+}
+window.addEventListener('resize', debouncedInitGraph);
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(debouncedInitGraph).observe(document.getElementById('graph-wrap'));
+}
+
+
+// ══════════════════════════════════════════════════════════════
+//  MODULE RAG CHAT — Assistant Data CNPS
+// ══════════════════════════════════════════════════════════════
+const RAG_STORE_KEY = 'cnps_rag_conversations';
+const RAG_KEY_STORE = 'cnps_rag_api_keys';
+
+let ragState = {
+  open: false,
+  conversations: [],   // [{id, title, date, messages:[]}]
+  currentId: null,
+  typing: false
+};
+
+// ── Persistance ──
+function ragLoad() {
+  try {
+    const d = JSON.parse(localStorage.getItem(RAG_STORE_KEY) || '[]');
+    ragState.conversations = d;
+  } catch(e) { ragState.conversations = []; }
+}
+function ragSave() {
+  try { localStorage.setItem(RAG_STORE_KEY, JSON.stringify(ragState.conversations)); } catch(e) {}
+}
+function saveAPIKey() {
+  try {
+    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
+    const prov = document.getElementById('rag-provider').value;
+    const key = document.getElementById('rag-api-key').value.trim();
+    const url = document.getElementById('rag-ollama-url-chat').value.trim();
+    if (key) keys[prov] = key;
+    if (url) keys['ollama_url'] = url;
+    localStorage.setItem(RAG_KEY_STORE, JSON.stringify(keys));
+    const st = document.getElementById('rag-key-status');
+    st.style.display = 'block';
+    setTimeout(() => st.style.display = 'none', 2000);
+  } catch(e) {}
+}
+function loadAPIKey(prov) {
+  try {
+    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
+    return { key: keys[prov] || '', url: keys['ollama_url'] || 'http://localhost:11434' };
+  } catch(e) { return { key: '', url: 'http://localhost:11434' }; }
+}
+
+// ── UI ──
+function toggleRAGChat() {
+  ragState.open = !ragState.open;
+  document.getElementById('rag-chat-panel').classList.toggle('open', ragState.open);
+  if (ragState.open) { ragRenderHist(); ragInitEmpty(); }
+}
+
+function onProviderChange() {
+  const prov = document.getElementById('rag-provider').value;
+  const keyIn = document.getElementById('rag-api-key');
+  const urlIn = document.getElementById('rag-ollama-url-chat');
+  const labels = {
+    local: 'Analyse locale sans LLM',
+    claude: 'Claude Sonnet — Anthropic',
+    openai: 'GPT-4o — OpenAI',
+    mistral: 'Mistral Large — Mistral AI',
+    ollama: 'Modèle local — Ollama'
+  };
+  document.getElementById('rag-model-label').textContent = labels[prov] || '';
+  keyIn.style.display = prov === 'ollama' || prov === 'local' ? 'none' : 'block';
+  urlIn.style.display = prov === 'ollama' ? 'block' : 'none';
+  if (prov !== 'local' && prov !== 'ollama') {
+    const saved = loadAPIKey(prov);
+    keyIn.value = saved.key ? '••••••••••••' : '';
+    keyIn.placeholder = prov === 'claude' ? 'sk-ant-...' : prov === 'openai' ? 'sk-...' : 'Clé API...';
+  }
+  if (prov === 'ollama') {
+    const saved = loadAPIKey(prov);
+    urlIn.value = saved.url;
+  }
+}
+
+function ragNewConv() {
+  const id = 'conv_' + Date.now();
+  ragState.conversations.unshift({ id, title: 'Nouvelle conversation', date: new Date().toLocaleDateString('fr-FR'), messages: [] });
+  ragState.currentId = id;
+  ragSave();
+  ragRenderHist();
+  ragRenderMessages([]);
+  ragInitEmpty();
+}
+
+function ragSelectConv(id) {
+  ragState.currentId = id;
+  ragRenderHist();
+  const conv = ragState.conversations.find(c => c.id === id);
+  if (conv) ragRenderMessages(conv.messages);
+}
+
+function ragGetCurrent() {
+  return ragState.conversations.find(c => c.id === ragState.currentId);
+}
+
+function ragRenderHist() {
+  const list = document.getElementById('rag-hist-list');
+  if (!list) return;
+  if (!ragState.conversations.length) {
+    list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--text3);text-align:center">Aucun historique</div>';
+    return;
+  }
+  list.innerHTML = ragState.conversations.map(c => `
+    <div class="rag-hist-item ${c.id === ragState.currentId ? 'active' : ''}" onclick="ragSelectConv('${c.id}')">
+      ${escH(c.title)}
+      <div class="rag-hist-date">${c.date}</div>
+    </div>`).join('');
+}
+
+function ragInitEmpty() {
+  const conv = ragGetCurrent();
+  const isEmpty = !conv || !conv.messages.length;
+  const emptyEl = document.getElementById('rag-empty');
+  if (!emptyEl) return;
+  emptyEl.style.display = isEmpty ? 'flex' : 'none';
+  if (isEmpty) {
+    const qq = document.getElementById('rag-quick-q');
+    const questions = [
+      'Femmes des entreprises agricoles par agence',
+      'Montant des cotisations ATMP 2024 par branche',
+      'Employeurs avec majorations de retard en cours',
+      'Prestations retraite consolidées (national + IPRAO)',
+      'Salariés actifs par secteur d'activité'
+    ];
+    if (qq) qq.innerHTML = questions.map(q =>
+      `<button class="rag-quick-q-btn" onclick="ragQuickQ(this)">${escH(q)}</button>`
+    ).join('');
+  }
+}
+
+function ragQuickQ(btn) {
+  document.getElementById('rag-input').value = btn.textContent;
+  sendRAGMsg();
+}
+
+function ragRenderMessages(messages) {
+  const el = document.getElementById('rag-msgs');
+  const emptyEl = document.getElementById('rag-empty');
+  if (!el) return;
+  if (!messages.length) {
+    el.innerHTML = '';
+    if (emptyEl) { el.appendChild(emptyEl); emptyEl.style.display = 'flex'; }
+    document.getElementById('rag-suggestions').style.display = 'none';
+    return;
+  }
+  if (emptyEl) emptyEl.style.display = 'none';
+  el.innerHTML = messages.map(m => m.role === 'user' ? renderUserMsg(m) : renderBotMsg(m)).join('');
+  el.scrollTop = el.scrollHeight;
+}
+
+function renderUserMsg(m) {
+  return `<div class="rag-msg-user">${escH(m.content)}</div>`;
+}
+
+function renderBotMsg(m) {
+  const d = m.data || {};
+  const tables = d.tables || [];
+  const cols = d.colonnes || [];
+  const joins = d.jointures || [];
+  const note = d.note || '';
+
+  const chips = tables.map(name => {
+    const t = STATE.tables.find(t => t.Title === name);
+    const col = t ? (DOMAIN_COLORS[t.Domain] || '#888') : '#888';
+    return `<span class="rag-chip" style="background:${col}18;border-color:${col};color:${col}"
+      onclick="ragOpenTable('${escH(name)}')" title="Voir dans le graphe">
+      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+      ${escH(name)}</span>`;
+  }).join('');
+
+  const joinsHTML = joins.length ? `
+    <div class="rag-joins">
+      <div class="rag-joins-label">Jointures</div>
+      ${joins.map(j => escH(j)).join('<br>')}
+    </div>` : '';
+
+  const colsHTML = cols.length ? `
+    <div style="margin:8px 0">
+      <div class="sec-lbl" style="margin-bottom:4px">Colonnes clés</div>
+      <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+        <thead><tr>
+          ${['Table','Colonne','Type','Clé','Rôle'].map(h =>
+            `<th style="padding:3px 6px;text-align:left;border-bottom:0.5px solid var(--border);color:var(--text3);font-weight:500;font-size:9.5px;text-transform:uppercase">${h}</th>`
+          ).join('')}
+        </tr></thead>
+        <tbody>${cols.map((c,i) => {
+          const t = STATE.tables.find(t=>t.Title===c.table);
+          const col = t ? (DOMAIN_COLORS[t.Domain]||'#888') : '#888';
+          const bg = i%2===0 ? 'var(--bg)' : 'var(--bg2)';
+          const kb = c.cle ? `<span style="background:var(--purple-light);color:var(--purple);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:9px">${c.cle}</span>` : '';
+          return `<tr style="background:${bg}">
+            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-weight:500;color:${col};font-size:10px">${escH(c.table)}</td>
+            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-family:monospace;font-size:9.5px;color:var(--purple)">${escH(c.colonne)}</td>
+            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-size:9px"><span style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:monospace">${escH(c.type)}</span></td>
+            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border)">${kb}</td>
+            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:10px">${escH(c.utilisation||'—')}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '';
+
+  return `<div class="rag-msg-bot"><div class="rag-msg-bot-inner">
+    ${tables.length ? `<div class="sec-lbl" style="margin-bottom:4px">${tables.length} table(s) identifiée(s)</div>
+    <div class="rag-tables-chips">${chips}</div>` : ''}
+    <div style="color:var(--text2);font-size:12px;line-height:1.6;margin:6px 0">${(d.explication||m.content||'').replace(/
+/g,'<br>')}</div>
+    ${joinsHTML}${colsHTML}
+    <div class="rag-actions">
+      ${tables.length ? `<button class="rag-action-btn primary" onclick="ragExportCSV(${JSON.stringify(d).replace(/"/g,'&quot;')})">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export CSV</button>` : ''}
+      ${tables.length ? `<button class="rag-action-btn" onclick="ragHighlightTables(${JSON.stringify(tables)})">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Voir dans le graphe</button>` : ''}
+      ${note ? `<span style="font-size:10px;color:var(--amber);margin-left:auto;align-self:center">⚠ ${escH(note)}</span>` : ''}
+    </div>
+  </div></div>`;
+}
+
+function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function ragOpenTable(name) {
+  const n = gNodes && gNodes.find(n => n.Title === name || n.title === name || n.id === name);
+  if (n) { STATE.selectedId = n.id; renderPanel(n); if (!ragState.open) toggleRAGChat(); }
+}
+
+function ragHighlightTables(tables) {
+  if (!gNodes) return;
+  STATE.filter.search = '';
+  document.getElementById('search').value = '';
+  if (sim) sim.alpha(.3).restart();
+  if (tables.length === 1) {
+    const n = gNodes.find(n => n.Title === tables[0]);
+    if (n) { STATE.selectedId = n.id; renderPanel(n); }
+  }
+}
+
+// ── LLM CALLS ──
+function ragBuildContext(question) {
+  const ctx = STATE.tables.map(t => {
+    const cols = STATE.columns.filter(c => c.TableId === t.id);
+    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilité: ${t.Reliability} | Source: ${t.Source||''}
+Description: ${t.Description||''}
+Colonnes: ${cols.map(c => `${c.ColumnName}(${c.DataType}${c.KeyType?','+c.KeyType:''}): ${c.Description||''}`).join(' | ')}`;
+  }).join('
+
+');
+
+  return `Tu es un expert data de la CNPS (Caisse Nationale de Prévoyance Sociale, Côte d'Ivoire).
+Tu analyses le catalogue de données du Département Statistique et Actuariat (DSA).
+
+CATALOGUE COMPLET:
+${ctx}
+
+RÈGLES DE RÉPONSE:
+- Réponds UNIQUEMENT en JSON valide, sans markdown
+- Identifie les tables pertinentes avec leurs noms EXACTS du catalogue
+- Explique les jointures en français clair et concis
+- Pour les secteurs d'activité, CODE_SEC 'A' = agriculture
+- Les montants sont en FCFA
+- Les 4 branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604)
+
+FORMAT JSON ATTENDU:
+{
+  "tables": ["NomExact1", "NomExact2"],
+  "explication": "Explication courte en français",
+  "jointures": ["TABLE_A.COL = TABLE_B.COL", "Filtre: CONDITION"],
+  "colonnes": [
+    {"table": "NomTable", "colonne": "NOM_COL", "type": "TYPE", "cle": "PK/FK/", "description": "...", "utilisation": "Pourquoi cette colonne"}
+  ],
+  "suggestions": ["Question de relance 1", "Question de relance 2", "Question de relance 3"]
+}`;
+}
+
+async function callRAGLLM(question, history) {
+  const prov = document.getElementById('rag-provider').value;
+  if (prov === 'local') throw new Error('LOCAL');
+
+  const stored = loadAPIKey(prov);
+  const keyInput = document.getElementById('rag-api-key').value.trim();
+  const key = (keyInput && !keyInput.startsWith('••')) ? keyInput : stored.key;
+
+  const sysPrompt = ragBuildContext(question);
+  const msgs = history.filter(m=>m.role==='user'||m.role==='assistant')
+    .slice(-6).map(m => ({ role: m.role, content: m.role==='user' ? m.content : JSON.stringify(m.data||{explication:m.content}) }));
+  msgs.push({ role: 'user', content: question });
+
+  if (prov === 'claude') {
+    if (!key) throw new Error('Clé API Claude manquante');
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01' },
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, system: sysPrompt, messages: msgs })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
+
+  } else if (prov === 'openai') {
+    if (!key) throw new Error('Clé API OpenAI manquante');
+    const r = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+      body: JSON.stringify({ model:'gpt-4o', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message);
+    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
+
+  } else if (prov === 'mistral') {
+    if (!key) throw new Error('Clé API Mistral manquante');
+    const r = await fetch('https://api.mistral.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+      body: JSON.stringify({ model:'mistral-large-latest', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
+    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
+
+  } else if (prov === 'ollama') {
+    const url = document.getElementById('rag-ollama-url-chat').value || stored.url || 'http://localhost:11434';
+    const r = await fetch(url+'/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({ model:'mistral', stream:false, format:'json',
+        messages:[{role:'system',content:sysPrompt},...msgs] })
+    });
+    if (!r.ok) throw new Error('Ollama : vérifiez que le serveur tourne sur '+url);
+    const d = await r.json();
+    const txt = d.message?.content || d.response || '{}';
+    return JSON.parse(txt.replace(/```json|```/g,'').trim());
+  }
+  throw new Error('Fournisseur inconnu');
+}
+
+// ── Analyse locale (sans LLM) ──
+function ragLocalAnalysis(question) {
+  const ql = question.toLowerCase();
+  const words = ql.split(/\s+/).filter(w=>w.length>2);
+
+  const domainKW = {
+    'prestation': ['Prestation'], 'retraite': ['Prestation'],
+    'cotisation': ['Cotisation'], 'debit': ['Cotisation'], 'majoration': ['Cotisation'],
+    'employe': ['Recouvrement','Immatriculation'], 'employeur': ['Recouvrement'],
+    'salari': ['Immatriculation'], 'salarié': ['Immatriculation'],
+    'agence': ['Referentiel'], 'branche': ['Referentiel'], 'date': ['Referentiel']
+  };
+
+  const targetDomains = new Set();
+  Object.entries(domainKW).forEach(([kw,doms]) => {
+    if (words.some(w=>w.includes(kw))) doms.forEach(d=>targetDomains.add(d));
+  });
+
+  const scored = STATE.tables.map(t => {
+    let s = targetDomains.has(t.Domain) ? 8 : 0;
+    const hay = (t.Title+' '+t.Description+' '+
+      STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')
+    ).toLowerCase();
+    words.forEach(w => { if(hay.includes(w)) s+=2; });
+    if (ql.includes('femme') && t.id==='2') s+=10;
+    if (ql.includes('agence') && (t.Title.includes('AGENCE')||t.Title.includes('EMPLOYEUR'))) s+=8;
+    if (ql.includes('agricol') && t.Title.includes('EMPLOY')) s+=8;
+    if (ql.includes('retraite') && (t.Title.includes('RETRAITE')||t.Title.includes('PRESTA'))) s+=6;
+    return {...t, score:s};
+  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
+
+  const joins = [];
+  scored.forEach(ta => {
+    STATE.columns.filter(c=>c.TableId===ta.id&&c.KeyType==='FK').forEach(ca => {
+      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==ta.id);
+      if(pk){ const tgt=STATE.tables.find(t=>t.id===pk.TableId);
+        if(tgt&&scored.find(s=>s.id===tgt.id)) joins.push(`${ta.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);
+      }
+    });
+  });
+
+  const suggestions = [
+    'Ventiler par branche (PF/ATMP/RETRAITE/AM)',
+    'Filtrer par période spécifique',
+    'Ajouter la dimension agence'
+  ];
+
+  return {
+    tables: scored.map(t=>t.Title),
+    explication: scored.length
+      ? `${scored.length} table(s) identifiée(s) par analyse locale du catalogue. Pour une explication détaillée des jointures, activez un modèle LLM.`
+      : 'Aucune table correspondante trouvée. Reformulez votre question.',
+    jointures: [...new Set(joins)],
+    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).slice(0,4).map(c=>({
+      table:t.Title, colonne:c.ColumnName, type:c.DataType, cle:c.KeyType||'',
+      description:c.Description||'', utilisation:c.KeyType==='PK'?'Clé primaire':c.KeyType==='FK'?'Clé de jointure':'Valeur à analyser'
+    }))),
+    suggestions,
+    note: 'Analyse locale — activez Claude/OpenAI/Mistral pour une analyse sémantique'
+  };
+}
+
+// ── Message envoyé ──
+async function sendRAGMsg() {
+  const input = document.getElementById('rag-input');
+  const q = input.value.trim();
+  if (!q || ragState.typing) return;
+
+  if (!ragState.currentId) ragNewConv();
+  const conv = ragGetCurrent();
+  if (!conv) return;
+
+  input.value = '';
+  document.getElementById('rag-suggestions').style.display = 'none';
+
+  conv.messages.push({ role:'user', content:q });
+  if (conv.title === 'Nouvelle conversation') conv.title = q.slice(0,28)+(q.length>28?'…':'');
+  ragSave();
+  ragRenderMessages(conv.messages);
+  ragRenderHist();
+
+  ragState.typing = true;
+  const typingEl = document.createElement('div');
+  typingEl.className = 'rag-typing';
+  typingEl.innerHTML = '<div class="rag-dot"></div><div class="rag-dot"></div><div class="rag-dot"></div>';
+  document.getElementById('rag-msgs').appendChild(typingEl);
+  document.getElementById('rag-msgs').scrollTop = 9999;
+
+  let data;
+  try {
+    const prov = document.getElementById('rag-provider').value;
+    if (prov === 'local') {
+      await new Promise(r=>setTimeout(r,400));
+      data = ragLocalAnalysis(q);
+    } else {
+      data = await callRAGLLM(q, conv.messages.slice(0,-1));
+    }
+  } catch(e) {
+    if (e.message === 'LOCAL') {
+      data = ragLocalAnalysis(q);
+    } else {
+      data = { tables:[], explication:'Erreur : '+e.message, jointures:[], colonnes:[], suggestions:[] };
+    }
+  }
+
+  ragState.typing = false;
+  typingEl.remove();
+
+  const botMsg = { role:'assistant', content: data.explication||'', data };
+  conv.messages.push(botMsg);
+  ragSave();
+  ragRenderMessages(conv.messages);
+
+  if (data.suggestions?.length) {
+    const suggEl = document.getElementById('rag-suggestions');
+    suggEl.style.display = 'flex';
+    suggEl.innerHTML = data.suggestions.slice(0,3).map(s =>
+      `<button class="rag-sugg-btn" onclick="ragSuggClick(this)">${escH(s)}</button>`
+    ).join('');
+  }
+}
+
+function ragSuggClick(btn) {
+  document.getElementById('rag-input').value = btn.textContent;
+  sendRAGMsg();
+}
+
+function ragExportCSV(data) {
+  let csv = 'sep=,
+RAPPORT DATA CATALOGUE CNPS — ASSISTANT RAG
+';
+  csv += 'TABLES IDENTIFIÉES
+Table,Domaine,Fiabilité,Lien SharePoint
+';
+  (data.tables||[]).forEach(n=>{
+    const t=STATE.tables.find(t=>t.Title===n);
+    if(t) csv+=`"${t.Title}","${t.Domain}","${t.Reliability}","${t.Sharepoint||''}"
+`;
+  });
+  csv += '
+EXPLICATION
+"'+(data.explication||'').replace(/"/g,"''")+'"';
+  csv += '
+
+JOINTURES
+';
+  (data.jointures||[]).forEach(j=>{ csv+=`"${j}"
+`; });
+  csv += '
+COLONNES
+Table,Colonne,Type,Clé,Description,Utilisation
+';
+  (data.colonnes||[]).forEach(c=>{
+    csv+=`"${c.table}","${c.colonne}","${c.type}","${c.cle||''}","${(c.description||'').replace(/"/g,"''")}","${(c.utilisation||'').replace(/"/g,"''")}")
+`;
+  });
+  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
+  a.download='RAG_CNPS_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+}
+
+// Init RAG au chargement
+function initRAGChat() {
+  ragLoad();
+  if (!ragState.conversations.length) ragNewConv();
+  else ragState.currentId = ragState.conversations[0].id;
+}
+
+// Appel depuis le graphe — clic sur nœud ouvre le chat pré-rempli
+function ragAskAboutTable(tableName) {
+  if (!ragState.open) toggleRAGChat();
+  setTimeout(() => {
+    document.getElementById('rag-input').value = `Parlez-moi de la table ${tableName} et comment l'utiliser`;
+    sendRAGMsg();
+  }, 300);
+}
+
+// Ajouter bouton "Interroger l'assistant" dans le panneau de détail
+const _origRenderPanel = renderPanel;
+function renderPanel(node) {
+  _origRenderPanel(node);
+  const panel = document.getElementById('panel');
+  if (!panel) return;
+  const ragBtn = document.createElement('button');
+  ragBtn.className = 'btn btn-sm';
+  ragBtn.style.marginTop = '6px';
+  ragBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> Interroger l'assistant`;
+  ragBtn.onclick = () => ragAskAboutTable(node.Title || node.id);
+  const actRow = panel.querySelector('.action-row');
+  if (actRow) actRow.parentNode.insertBefore(ragBtn, actRow.nextSibling);
+}
+
+let _ragResult = null; // legacy compat
+function openRAG() { toggleRAGChat(); } // legacy compat
+
+
+document.addEventListener('change', e => {
+  if (e.target.id !== 'rag-model') return;
+  document.getElementById('rag-key').style.display = e.target.value === 'claude' ? 'block' : 'none';
+  document.getElementById('rag-ollama-url').style.display = e.target.value === 'ollama' ? 'block' : 'none';
+});
+
+function openRAG() {
+  document.getElementById('rag-result').style.display = 'none';
+  document.getElementById('rag-loader').style.display = 'none';
+  document.getElementById('rag-question').value = '';
+  document.getElementById('rag-status').textContent = '';
+  openModal('modal-rag');
+}
+
+function buildContext() {
+  return STATE.tables.map(t => {
+    const cols = STATE.columns.filter(c => c.TableId === t.id);
+    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilite: ${t.Reliability} | Lien: ${t.Sharepoint||'non renseigne'}
+Description: ${t.Description||''}
+Colonnes: ${cols.map(c => c.ColumnName+'('+c.DataType+(c.KeyType?','+c.KeyType:'')+'):'+( c.Description||'')).join(' | ')}`;
+  }).join('
+
+');
+}
+
+function localRAG(q) {
+  const ql = q.toLowerCase();
+  const domMap = {'salarie':['Salaries'],'employe':['Salaries'],'employeur':['Recouvrement'],'cotisation':['Cotisations'],'prestation':['Prestation'],'recouvrement':['Recouvrement'],'assure':['Prestation','Cotisations']};
+  const domSet = new Set();
+  // Map generic keywords to CONFIG domains
+  CONFIG.DOMAINS.forEach(d => { const dl = d.toLowerCase(); if (ql.includes(dl)) domSet.add(d); });
+  Object.entries(domMap).forEach(([kw,doms]) => { if(ql.includes(kw)) doms.forEach(d => { const found = CONFIG.DOMAINS.find(cd => cd.toLowerCase().includes(d.toLowerCase())); if(found) domSet.add(found); }); });
+  const words = ql.split(/\s+/).filter(w => w.length > 3);
+  const scored = STATE.tables.map(t => {
+    let s = domSet.has(t.Domain) ? 10 : 0;
+    const hay = (t.Title+' '+t.Description+' '+STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')).toLowerCase();
+    words.forEach(w => { if (hay.includes(w)) s += 2; });
+    return {...t, score:s};
+  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
+
+  const joins = [];
+  scored.forEach(t => {
+    STATE.columns.filter(c=>c.TableId===t.id&&c.KeyType==='FK').forEach(ca => {
+      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==t.id);
+      if(pk){const tgt=STATE.tables.find(tt=>tt.id===pk.TableId); if(tgt&&scored.find(ss=>ss.id===tgt.id)) joins.push(`${t.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);}
+    });
+  });
+
+  const expl = scored.length===0 ? 'Aucune table correspondante trouvee dans le catalogue.'
+    : scored.length+' table(s) identifiee(s) :
+• '+scored.map(t=>t.Title+' ('+t.Domain+')').join('
+• ')
+      +(joins.length?'
+
+Jointures detectees :
+• '+[...new Set(joins)].join('
+• '):'')
+      +'
+
+(Analyse locale — pour des explications detaillees, activez Claude API ou Ollama local)';
+
+  return {
+    tables: scored.map(t=>t.Title),
+    explication: expl,
+    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).map(c=>({
+      table:t.Title,colonne:c.ColumnName,type:c.DataType,cle:c.KeyType||'',
+      description:c.Description||'',
+      utilisation:c.KeyType==='PK'?'Cle primaire — jointure':c.KeyType==='FK'?'Cle etrangere — jointure':'Valeur a agreger ou filtrer'
+    }))),
+    liens:(scored.map(t=>t.Sharepoint).filter(Boolean))
+  };
+}
+
+async function callLLM(q) {
+  const model = document.getElementById('rag-model').value;
+  const sys = 'Tu es un expert data pour un organisme de securite sociale.
+Catalogue:
+'+buildContext()+'
+
+Reponds UNIQUEMENT en JSON:
+{"tables":["NomTable"],"explication":"...","colonnes":[{"table":"","colonne":"","type":"","cle":"","description":"","utilisation":""}],"liens":["url"]}';
+  if (model==='claude') {
+    const key = document.getElementById('rag-key').value.trim();
+    if (!key) throw new Error('Cle API Claude requise');
+    const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:sys,messages:[{role:'user',content:q}]})});
+    const d = await r.json();
+    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
+  } else {
+    const url = document.getElementById('rag-ollama-url').value||'http://localhost:11434';
+    const r = await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'mistral',stream:false,format:'json',prompt:sys+'
+
+Question: '+q})});
+    const d = await r.json();
+    return JSON.parse(d.response||'{}');
+  }
+}
+
+async function runRAG() {
+  const q = document.getElementById('rag-question').value.trim();
+  if (!q) return;
+  document.getElementById('rag-result').style.display = 'none';
+  document.getElementById('rag-loader').style.display = 'block';
+  document.getElementById('rag-status').textContent = '';
+  try {
+    const model = document.getElementById('rag-model').value;
+    let result;
+    if (model==='local') { result = localRAG(q); }
+    else { try { result = await callLLM(q); } catch(e) { result = localRAG(q); document.getElementById('rag-status').textContent = '⚠ Analyse locale (LLM indisponible : '+e.message+')'; } }
+    _ragResult = {question:q,...result};
+    renderRAGResult(result);
+  } catch(e) { document.getElementById('rag-loader').style.display='none'; document.getElementById('rag-status').textContent='❌ '+e.message; }
+}
+
+function renderRAGResult(r) {
+  document.getElementById('rag-loader').style.display='none';
+  document.getElementById('rag-result').style.display='block';
+  document.getElementById('rag-tables').innerHTML=(r.tables||[]).map(name=>{
+    const t=STATE.tables.find(t=>t.Title===name);
+    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
+    const sp=t&&t.Sharepoint?'onclick="window.open(''+t.Sharepoint+'','_blank')" style="cursor:pointer"':'';
+    return '<span '+sp+' style="display:inline-flex;align-items:center;gap:5px;background:'+col+'18;border:0.5px solid '+col+';border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:500;color:'+col+'"><span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'+name+'</span>';
+  }).join('');
+  document.getElementById('rag-explain').innerHTML=(r.explication||'').replace(/
+/g,'<br>');
+  document.getElementById('rag-cols-head').innerHTML='<tr>'+['Table','Colonne','Type','Cle','Description','Utilisation'].map(h=>'<th style="background:var(--bg3);padding:5px 8px;text-align:left;font-size:10px;font-weight:500;color:var(--text3);border:0.5px solid var(--border);white-space:nowrap">'+h+'</th>').join('')+'</tr>';
+  document.getElementById('rag-cols-body').innerHTML=(r.colonnes||[]).map((c,i)=>{
+    const t=STATE.tables.find(t=>t.Title===c.table);
+    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
+    const bg=i%2===0?'var(--bg)':'var(--bg2)';
+    const kb=c.cle?'<span style="background:var(--purple-light);color:var(--purple);padding:1px 5px;border-radius:3px;font-size:9px;font-family:monospace">'+c.cle+'</span>':'';
+    return '<tr style="background:'+bg+'"><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;font-weight:500;color:'+col+'">'+c.table+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-family:monospace;font-size:10px;color:var(--purple)">'+c.colonne+'</td><td style="padding:5px 8px;border:0.5px solid var(--border)"><span style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:10px">'+c.type+'</span></td><td style="padding:5px 8px;border:0.5px solid var(--border)">'+kb+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.description||'—')+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.utilisation||'—')+'</td></tr>';
+  }).join('');
+}
+
+function exportRAGCSV() {
+  if (!_ragResult) return;
+  const r = _ragResult;
+  let csv = 'sep=,
+RAPPORT DATA CATALOGUE — ASSISTANT RAG
+';
+  csv += 'Question,"'+r.question+'"
+
+TABLES IDENTIFIEES
+Table,Domaine,Fiabilite,Lien SharePoint
+';
+  (r.tables||[]).forEach(n=>{const t=STATE.tables.find(t=>t.Title===n);if(t)csv+='"'+t.Title+'","'+t.Domain+'","'+t.Reliability+'","'+(t.Sharepoint||'')+'"
+';});
+  csv += '
+ANALYSE,"'+(r.explication||'').replace(/"/g,"''").replace(/
+/g,' )+'"
+';
+  csv += '
+COLONNES
+Table,Colonne,Type,Cle,Description,Utilisation
+';
+  (r.colonnes||[]).forEach(c=>{csv+='"'+c.table+'","'+c.colonne+'","'+c.type+'","'+(c.cle||'')+'","'+(c.description||'').replace(/"/g,"''")+'","'+(c.utilisation||'').replace(/"/g,"''")+'")
+';});
+  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RAG_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+}
+
+
+window.onload = async function() {
+  await init();
+  initRAGChat();
+};
+</script>
+</body>
+</html>
