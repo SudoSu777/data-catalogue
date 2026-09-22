@@ -1,39 +1,141 @@
 IdTable,NomColonne,TypeDonnee,TypeCle,Description
 1,ID_PRESTATION,INT,PK,Identifiant unique de la prestation
-1,DATE_ID,INT,FK,Référence vers DIM_DATE (format YYYYMMDD)
-1,ASSURE_ID,INT,FK,Référence vers DIM_ASSURE
-1,TYPE_PRESTATION,VARCHAR,,Code type de prestation (MAL/MAT/INV/DCD)
-1,MONTANT_VERSE,DECIMAL,,Montant versé en euros
-1,DUREE_JOURS,INT,,Durée de la prestation en jours calendaires
+1,DATE_ID,INT,FK,Reference vers DIM_DATE (format YYYYMMDD)
+1,ASSURE_ID,INT,FK,Reference vers DIM_ASSURE
+1,BRANCHE,VARCHAR,,"Branche CNPS : PF (601), ATMP (602), RETRAITE (603), AM (604)"
+1,MONTANT_VERSE,DECIMAL,,Montant verse en FCFA
+1,DUREE_JOURS,INT,,Duree de la prestation en jours calendaires
 1,NB_ACTES,INT,,Nombre d'actes couverts
-2,ASSURE_ID,INT,PK,Identifiant unique de l'assuré
-2,MATRICULE,VARCHAR,,Numéro de sécurité sociale (NIR)
+2,ASSURE_ID,INT,PK,Identifiant unique de l'assure
+2,MATRICULE,VARCHAR,,Matricule CNPS de l'assure
 2,NOM,NVARCHAR,,Nom de famille
-2,PRENOM,NVARCHAR,,Prénom
+2,PRENOM,NVARCHAR,,Prenom
 2,DATE_NAISSANCE,DATE,,Date de naissance
-2,DATE_AFFILIATION,DATE,,Date d'entrée dans le régime
-2,CATEGORIE,VARCHAR,,Catégorie d'assuré (Actif/Retraité/Ayant-droit)
+2,DATE_AFFILIATION,DATE,,Date d'entree dans le regime
+2,CATEGORIE,VARCHAR,,Categorie d'assure (Actif/Retraite/Ayant-droit)
 3,ID_COTISATION,INT,PK,Identifiant unique de la ligne de cotisation
-3,DATE_ID,INT,FK,Référence vers DIM_DATE
-3,ASSURE_ID,INT,FK,Référence vers DIM_ASSURE
-3,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
-3,MONTANT_PATRONAL,DECIMAL,,Part patronale de la cotisation en euros
-3,MONTANT_SALARIAL,DECIMAL,,Part salariale de la cotisation en euros
-3,TAUX_APPLIQUE,DECIMAL,,Taux de cotisation appliqué en pourcentage
-4,ID_RECOUVREMENT,INT,PK,Identifiant unique de l'action de recouvrement
-4,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
-4,DATE_ID,INT,FK,Référence vers DIM_DATE
-4,MONTANT_DU,DECIMAL,,Montant de la créance initiale en euros
-4,MONTANT_RECOUVRE,DECIMAL,,Montant effectivement recouvré en euros
-4,STATUT,VARCHAR,,Statut du recouvrement (En cours/Soldé/Contentieux)
-5,EMPLOYEUR_ID,INT,PK,Identifiant unique de l'employeur
-5,SIRET,VARCHAR,,Numéro SIRET de l'établissement
-5,RAISON_SOCIALE,NVARCHAR,,Dénomination officielle de l'entreprise
-5,SECTEUR,VARCHAR,,Code NAF / secteur d'activité
-5,EFFECTIF,INT,,Nombre de salariés déclarés
-6,ID_SALARIE,INT,PK,Identifiant unique de la ligne salariale
-6,ASSURE_ID,INT,FK,Référence vers DIM_ASSURE
-6,EMPLOYEUR_ID,INT,FK,Référence vers DIM_EMPLOYEUR
-6,DATE_ID,INT,FK,Référence vers DIM_DATE
-6,SALAIRE_BRUT,DECIMAL,,Salaire brut mensuel déclaré en euros
-6,SALAIRE_PLAFONNE,DECIMAL,,Salaire plafonné pour calcul cotisations
+3,DATE_ID,INT,FK,Reference vers DIM_DATE
+3,ASSURE_ID,INT,FK,Reference vers DIM_ASSURE
+3,EMPLOYEUR_ID,INT,FK,Reference vers EMPLOYEURS_ACTIFS
+3,BRANCHE,VARCHAR,,Branche CNPS (PF/ATMP/RETRAITE/AM)
+3,MONTANT_PATRONAL,DECIMAL,,Part patronale de la cotisation en FCFA
+3,MONTANT_SALARIAL,DECIMAL,,Part salariale de la cotisation en FCFA
+3,TAUX_APPLIQUE,DECIMAL,,Taux de cotisation applique en pourcentage
+4,EMPLOYEUR_ID,INT,PK,Identifiant unique de l'employeur
+4,EMPNUM,VARCHAR,,Numero employeur CNPS
+4,RAISON_SOCIALE,NVARCHAR,,Denomination officielle de l'entreprise
+4,CODE_SEC,VARCHAR,,Code secteur d'activite
+4,SECTEUR_ACTIVITE,VARCHAR,,Libelle du secteur d'activite
+4,EFFECTIF,INT,,Nombre de salaries declares
+4,AGCODE,VARCHAR,FK,Code agence de rattachement
+5,ID_SALARIE,INT,PK,Identifiant unique de la ligne salariale
+5,ASSURE_ID,INT,FK,Reference vers DIM_ASSURE
+5,EMPLOYEUR_ID,INT,FK,Reference vers EMPLOYEURS_ACTIFS
+5,DATE_ID,INT,FK,Reference vers DIM_DATE
+5,SALAIRE_BRUT,DECIMAL,,Salaire brut mensuel declare en FCFA
+5,SALAIRE_PLAFONNE,DECIMAL,,Salaire plafonne pour calcul cotisations en FCFA
+6,DATE_ID,INT,FK,Reference vers DIM_DATE
+6,BRANCHE,VARCHAR,,Branche CNPS (PF/ATMP/RETRAITE/AM)
+6,MONTANT_TOTAL,DECIMAL,,Somme des prestations versees en FCFA
+6,NB_PRESTATIONS,INT,,Nombre de prestations agregees
+7,AGCODE,VARCHAR,FK,Code agence
+7,AGLIBEL,VARCHAR,,Libelle agence
+7,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+7,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+7,CODE_SEC,VARCHAR,,Code secteur d'activite
+7,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+7,PERIODE,VARCHAR,,Periode de la cotisation (AAAAMM ou similaire)
+7,DATE_RECEPTION,DATE,,Date de reception du document
+7,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+7,OPERATION,VARCHAR,,Code operation
+7,LIBELLE_OPERATION,VARCHAR,,Libelle operation
+7,COT_DES_AM_ANT,DECIMAL,,Montant cotisation Assurance Maladie en FCFA
+7,COT_DES_PF_ANT,DECIMAL,,Montant cotisation Prestations Familiales en FCFA
+7,COT_DES_ATMP_ANT,DECIMAL,,Montant cotisation Accidents Travail en FCFA
+7,COT_DES_RET_ANT,DECIMAL,,Montant cotisation Retraite en FCFA
+7,COT_DEBIT,DECIMAL,,Montant total debit en FCFA
+8,AGCODE,VARCHAR,FK,Code agence
+8,AGLIBEL,VARCHAR,,Libelle agence
+8,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+8,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+8,CODE_SEC,VARCHAR,,Code secteur d'activite
+8,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+8,PERIODE,VARCHAR,,Periode de la cotisation (AAAAMM ou similaire)
+8,DATE_RECEPTION,DATE,,Date de reception du document
+8,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+8,OPERATION,VARCHAR,,Code operation
+8,LIBELLE_OPERATION,VARCHAR,,Libelle operation
+8,COT_DES_AM_ANT,DECIMAL,,Montant cotisation Assurance Maladie en FCFA
+8,COT_DES_PF_ANT,DECIMAL,,Montant cotisation Prestations Familiales en FCFA
+8,COT_DES_ATMP_ANT,DECIMAL,,Montant cotisation Accidents Travail en FCFA
+8,COT_DES_RET_ANT,DECIMAL,,Montant cotisation Retraite en FCFA
+8,COT_DEBIT,DECIMAL,,Montant total debit en FCFA
+9,AGCODE,VARCHAR,FK,Code agence
+9,AGLIBEL,VARCHAR,,Libelle agence
+9,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+9,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+9,CODE_SEC,VARCHAR,,Code secteur d'activite
+9,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+9,PERIODE,VARCHAR,,Periode de la cotisation (AAAAMM ou similaire)
+9,DATE_RECEPTION,DATE,,Date de reception du document
+9,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+9,OPERATION,VARCHAR,,Code operation
+9,LIBELLE_OPERATION,VARCHAR,,Libelle operation
+9,COT_DES_AM_ANT,DECIMAL,,Montant cotisation Assurance Maladie en FCFA
+9,COT_DES_PF_ANT,DECIMAL,,Montant cotisation Prestations Familiales en FCFA
+9,COT_DES_ATMP_ANT,DECIMAL,,Montant cotisation Accidents Travail en FCFA
+9,COT_DES_RET_ANT,DECIMAL,,Montant cotisation Retraite en FCFA
+9,COT_DEBIT,DECIMAL,,Montant total debit en FCFA
+10,AGCODE,VARCHAR,FK,Code agence
+10,AGLIBEL,VARCHAR,,Libelle agence
+10,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+10,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+10,CODE_SEC,VARCHAR,,Code secteur d'activite
+10,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+10,PERIODE,VARCHAR,,Periode de la cotisation (AAAAMM ou similaire)
+10,DATE_RECEPTION,DATE,,Date de reception du document
+10,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+10,OPERATION,VARCHAR,,Code operation
+10,LIBELLE_OPERATION,VARCHAR,,Libelle operation
+10,COT_DES_AM_ANT,DECIMAL,,Montant cotisation Assurance Maladie en FCFA
+10,COT_DES_PF_ANT,DECIMAL,,Montant cotisation Prestations Familiales en FCFA
+10,COT_DES_ATMP_ANT,DECIMAL,,Montant cotisation Accidents Travail en FCFA
+10,COT_DES_RET_ANT,DECIMAL,,Montant cotisation Retraite en FCFA
+10,COT_DEBIT,DECIMAL,,Montant total debit en FCFA
+11,AGCODE,VARCHAR,FK,Code agence
+11,AGLIBEL,VARCHAR,,Libelle agence
+11,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+11,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+11,CODE_SEC,VARCHAR,,Code secteur d'activite
+11,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+11,PERIODE,VARCHAR,,Periode de la majoration
+11,DATE_RECEPTION,DATE,,Date de reception du document
+11,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+11,DEBIT,DECIMAL,,Montant total de la majoration en FCFA
+11,PF,DECIMAL,,Majoration Prestations Familiales en FCFA
+11,ATMP,DECIMAL,,Majoration Accidents Travail en FCFA
+11,RETRAITE,DECIMAL,,Majoration Retraite en FCFA
+11,AM,DECIMAL,,Majoration Assurance Maladie en FCFA
+12,AGCODE,VARCHAR,FK,Code agence
+12,AGLIBEL,VARCHAR,,Libelle agence
+12,EMPNUM,VARCHAR,FK,Numero employeur CNPS
+12,ENTRAISOC,NVARCHAR,,Raison sociale de l'entreprise
+12,CODE_SEC,VARCHAR,,Code secteur d'activite
+12,SECTEUR_ACTIVITE,VARCHAR,,Libelle secteur d'activite
+12,PERIODE,VARCHAR,,Periode de la majoration
+12,DATE_RECEPTION,DATE,,Date de reception du document
+12,DATE_SAISIE,DATE,,Date de saisie dans le systeme
+12,DEBIT,DECIMAL,,Montant total de la majoration en FCFA
+12,PF,DECIMAL,,Majoration Prestations Familiales en FCFA
+12,ATMP,DECIMAL,,Majoration Accidents Travail en FCFA
+12,RETRAITE,DECIMAL,,Majoration Retraite en FCFA
+12,AM,DECIMAL,,Majoration Assurance Maladie en FCFA
+13,ID_LIGNE,INT,PK,Identifiant unique de la ligne de prestation
+13,EXERCICE,INT,,Exercice comptable (annee)
+13,BRANCHE,VARCHAR,,PF (601) / ATMP (602) / RETRAITE_CONSO (603) / AM (604)
+13,COMPTE,VARCHAR,,"Compte comptable (601, 602, 603, 604)"
+13,PERIMETRE,VARCHAR,,NATIONAL ou IPRAO (retraite uniquement)
+13,MONTANT_FCFA,DECIMAL,,Montant de la prestation en FCFA
+13,SOURCE_SYSTEME,VARCHAR,,SECU ou e-interface
+13,TYPE_LIGNE,VARCHAR,,COURANT / MANUEL / ESTIMATION_APEX / HORS_SECU
+13,DATE_ID,INT,FK,Reference vers DIM_DATE
