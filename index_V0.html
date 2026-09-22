@@ -3,25 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Data Catalogue CNPS — DSA</title>
+<title>Data Catalogue — Graphe Interactif</title>
 
 <!-- ============================================================
      CONFIGURATION — À MODIFIER AVANT DÉPLOIEMENT
      ============================================================ -->
 <script>
 const CONFIG = {
-  DATA_SOURCE: "csv",  // "csv" ou "sharepoint"
-  // URL de base de votre site SharePoint
-  // Exemple : "https://votre-entreprise.sharepoint.com/sites/DataTeam"
+  // ── Source des données ──────────────────────────────────────
+  // "csv"        → lit les fichiers CSV depuis DATA_BASE_URL (GitHub)
+  // "sharepoint" → lit les listes SharePoint (nécessite droits admin SP)
+  DATA_SOURCE: "csv",
+
+  // URL de base du dossier data/ sur GitHub (raw)
+  // Format: "https://raw.githubusercontent.com/USER/REPO/main/data"
+  DATA_BASE_URL: "https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data",
+
+  // ── Configuration SharePoint (ignorée si DATA_SOURCE = "csv") ──
   SHAREPOINT_SITE_URL: "https://cicnps.sharepoint.com/sites/dsa",
-
-  // Nom exact de la Liste SharePoint qui stocke les tables du catalogue
   LIST_TABLES: "CatalogueTables",
-
-  // Nom exact de la Liste SharePoint qui stocke les colonnes de chaque table
   LIST_COLUMNS: "CatalogueColonnes",
-
-  // Nom exact de la Liste SharePoint qui stocke l'historique des modifications
   LIST_HISTORY: "CatalogueHistorique",
 
   // Emails des administrateurs du catalogue (accès complet : ajout / modification / suppression)
@@ -32,7 +33,7 @@ const CONFIG = {
   ],
 
   // Domaines métier disponibles (modifiable)
-  DOMAINS: ["Prestation", "Cotisation", "Recouvrement", "Immatriculation", "Referentiel"],
+  DOMAINS: ["Prestation", "Recouvrement", "Salariés", "Cotisations"],
 
   // Niveaux de fiabilité disponibles
   RELIABILITY_LEVELS: ["Certifiée", "En validation", "Non vérifiée"],
@@ -242,195 +243,6 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
 .spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--purple); border-radius: 50%; animation: spin .7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-
-/* ── RAG CHAT ── */
-#rag-chat-panel {
-  position: fixed; right: 0; top: 0; bottom: 0; width: 420px;
-  background: var(--bg); border-left: 0.5px solid var(--border2);
-  display: flex; flex-direction: column; z-index: 50;
-  transform: translateX(100%); transition: transform .25s ease;
-}
-#rag-chat-panel.open { transform: translateX(0); }
-#rag-chat-toggle {
-  position: fixed; right: 14px; bottom: 80px; z-index: 51;
-  width: 48px; height: 48px; border-radius: 50%;
-  background: var(--purple); color: var(--purple-light);
-  border: none; cursor: pointer; font-size: 20px;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(83,74,183,.35);
-  transition: transform .15s;
-}
-#rag-chat-toggle:hover { transform: scale(1.08); }
-#rag-chat-toggle .badge-count {
-  position: absolute; top: -3px; right: -3px;
-  background: var(--red); color: white;
-  font-size: 9px; font-weight: 600;
-  width: 16px; height: 16px; border-radius: 50%;
-  display: none; align-items: center; justify-content: center;
-}
-.rag-head {
-  padding: 12px 14px; border-bottom: 0.5px solid var(--border);
-  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
-  background: var(--bg);
-}
-.rag-head-title { font-size: 13px; font-weight: 500; flex: 1; }
-.rag-head-btns { display: flex; gap: 4px; }
-.rag-icon-btn {
-  width: 28px; height: 28px; border: 0.5px solid var(--border2);
-  border-radius: var(--r-md); background: none; cursor: pointer;
-  color: var(--text2); font-size: 14px;
-  display: flex; align-items: center; justify-content: center;
-}
-.rag-icon-btn:hover { background: var(--bg2); }
-/* Sidebar historique */
-.rag-body { display: flex; flex: 1; overflow: hidden; }
-.rag-sidebar {
-  width: 140px; border-right: 0.5px solid var(--border);
-  display: flex; flex-direction: column; flex-shrink: 0;
-  background: var(--bg2); overflow-y: auto;
-}
-.rag-sidebar-head {
-  padding: 8px 10px; font-size: 10px; font-weight: 500;
-  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
-  border-bottom: 0.5px solid var(--border); flex-shrink: 0;
-}
-.rag-hist-item {
-  padding: 7px 10px; font-size: 11px; color: var(--text2);
-  cursor: pointer; border-bottom: 0.5px solid var(--border);
-  line-height: 1.35;
-}
-.rag-hist-item:hover { background: var(--bg3); }
-.rag-hist-item.active { background: var(--purple-light); color: var(--purple); }
-.rag-hist-date { font-size: 9.5px; color: var(--text3); margin-top: 2px; }
-.rag-new-btn {
-  margin: 8px; padding: 5px 8px; font-size: 11px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: none; color: var(--text2); cursor: pointer;
-  display: flex; align-items: center; gap: 4px;
-}
-.rag-new-btn:hover { background: var(--bg3); }
-/* Zone messages */
-.rag-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-.rag-msgs {
-  flex: 1; overflow-y: auto; padding: 12px;
-  display: flex; flex-direction: column; gap: 12px;
-}
-.rag-msg-user {
-  align-self: flex-end; max-width: 85%;
-  background: var(--purple); color: var(--purple-light);
-  padding: 8px 12px; border-radius: 12px 12px 2px 12px;
-  font-size: 12px; line-height: 1.5;
-}
-.rag-msg-bot {
-  align-self: flex-start; max-width: 96%;
-}
-.rag-msg-bot-inner {
-  background: var(--bg2); border: 0.5px solid var(--border);
-  border-radius: 2px 12px 12px 12px;
-  padding: 10px 12px; font-size: 12px; line-height: 1.6;
-}
-.rag-tables-chips { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0; }
-.rag-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 2px 8px; border-radius: 20px; font-size: 10.5px; font-weight: 500;
-  cursor: pointer; border: 0.5px solid transparent;
-}
-.rag-chip:hover { opacity: .8; }
-.rag-joins {
-  background: var(--bg3); border: 0.5px solid var(--border);
-  border-radius: var(--r-md); padding: 8px 10px; margin: 6px 0;
-  font-family: var(--font-mono); font-size: 10px; color: var(--purple);
-  line-height: 1.7;
-}
-.rag-joins-label {
-  font-family: var(--font); font-size: 9.5px; font-weight: 500;
-  color: var(--text3); text-transform: uppercase; letter-spacing:.04em;
-  margin-bottom: 4px;
-}
-.rag-actions { display: flex; gap: 5px; margin-top: 8px; flex-wrap: wrap; }
-.rag-action-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 9px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: 20px;
-  background: none; color: var(--text2); cursor: pointer;
-}
-.rag-action-btn:hover { background: var(--bg2); }
-.rag-action-btn.primary {
-  background: var(--purple); color: var(--purple-light); border-color: var(--purple);
-}
-.rag-suggestions {
-  display: flex; gap: 5px; flex-wrap: wrap;
-  padding: 6px 12px; border-top: 0.5px solid var(--border);
-}
-.rag-sugg-btn {
-  font-size: 10.5px; padding: 3px 9px;
-  border: 0.5px solid var(--border2); border-radius: 20px;
-  background: none; color: var(--text2); cursor: pointer;
-}
-.rag-sugg-btn:hover { border-color: var(--purple); color: var(--purple); }
-/* Zone saisie */
-.rag-input-area {
-  border-top: 0.5px solid var(--border); padding: 10px 12px;
-  background: var(--bg); flex-shrink: 0;
-}
-.rag-api-row {
-  display: flex; align-items: center; gap: 5px;
-  margin-bottom: 8px; font-size: 11px;
-}
-.rag-api-provider {
-  padding: 3px 7px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-}
-.rag-api-key {
-  flex: 1; padding: 3px 8px; font-size: 10.5px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-}
-.rag-input-row { display: flex; gap: 6px; align-items: flex-end; }
-.rag-input-row textarea {
-  flex: 1; padding: 7px 10px; font-size: 12px;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text);
-  resize: none; height: 50px; font-family: var(--font); line-height: 1.5;
-}
-.rag-send-btn {
-  width: 36px; height: 36px; border-radius: var(--r-md);
-  background: var(--purple); color: var(--purple-light);
-  border: none; cursor: pointer; font-size: 16px;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-}
-.rag-send-btn:hover { background: var(--purple-dark); }
-.rag-typing {
-  display: flex; gap: 4px; align-items: center; padding: 8px 12px;
-}
-.rag-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--text3); animation: ragbounce .9s infinite;
-}
-.rag-dot:nth-child(2){animation-delay:.15s}
-.rag-dot:nth-child(3){animation-delay:.3s}
-@keyframes ragbounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
-.rag-empty {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 10px; color: var(--text3); font-size: 12px; text-align: center;
-  padding: 20px;
-}
-.rag-empty svg { opacity: .35; }
-.rag-quick-q {
-  display: flex; flex-direction: column; gap: 5px; width: 100%;
-}
-.rag-quick-q-btn {
-  padding: 8px 10px; font-size: 11.5px; text-align: left;
-  border: 0.5px solid var(--border2); border-radius: var(--r-md);
-  background: var(--bg2); color: var(--text2); cursor: pointer;
-  line-height: 1.4;
-}
-.rag-quick-q-btn:hover { border-color: var(--purple); color: var(--purple); background: var(--purple-light); }
-.sec-lbl { font-size: 10px; font-weight: 500; color: var(--text3); text-transform: uppercase; letter-spacing:.05em; margin-bottom: 5px; }
-
 /* Scrollbar */
 ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
 </style>
@@ -440,7 +252,7 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
 <!-- Loader -->
 <div id="loader">
   <div class="spinner"></div>
-  <span id="loader-msg">Chargement du catalogue CNPS...</span>
+  <span id="loader-msg">Connexion à SharePoint...</span>
 </div>
 
 <!-- App -->
@@ -448,8 +260,8 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
   <div id="header">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="18" r="3"/><line x1="9" y1="6" x2="15" y2="6"/><line x1="6" y1="9" x2="6" y2="15"/><line x1="9" y1="18" x2="15" y2="18"/><line x1="18" y1="9" x2="18" y2="15"/></svg>
     <div>
-      <h1>Data Catalogue CNPS</h1>
-      <div class="sub">DSA — Département Statistique et Actuariat</div>
+      <h1>Data Catalogue</h1>
+      <div class="sub">Graphe des tables et liaisons</div>
     </div>
     <div class="user-badge">
       <span id="user-name">Chargement...</span>
@@ -473,15 +285,9 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
         <span class="chip-rel" data-v="En validation" onclick="setReliability(this)">◑ En validation</span>
         <span class="chip-rel" data-v="Non vérifiée" onclick="setReliability(this)">○ Non vérifiée</span>
       </div>
-      <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
-        <button class="btn btn-sm" style="background:#1D9E75;color:#EAF3DE;border-color:#1D9E75;gap:5px" onclick="toggleRAGChat()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-          Assistant RAG
-        </button>
-        <div id="admin-tools" style="display:none;gap:6px">
-          <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
-          <button class="btn btn-sm" onclick="refreshData()">↻ Actualiser</button>
-        </div>
+      <div id="admin-tools" style="display:none;margin-left:auto">
+        <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ Nouvelle table</button>
+        <button class="btn btn-sm" onclick="refreshData()" title="Recharger depuis SharePoint">↻ Actualiser</button>
       </div>
   </div>
 
@@ -588,90 +394,6 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
   </div>
 </div>
 
-<!-- ── RAG CHAT TOGGLE BUTTON ── -->
-<button id="rag-chat-toggle" onclick="toggleRAGChat()" title="Assistant Data">
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg>
-  <span class="badge-count" id="rag-badge">0</span>
-</button>
-
-<!-- ── RAG CHAT PANEL ── -->
-<div id="rag-chat-panel">
-  <!-- Header -->
-  <div class="rag-head">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-    <span class="rag-head-title">Assistant Data CNPS</span>
-    <div class="rag-head-btns">
-      <button class="rag-icon-btn" onclick="ragNewConv()" title="Nouvelle conversation">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
-      <button class="rag-icon-btn" onclick="toggleRAGChat()" title="Fermer">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-    </div>
-  </div>
-
-  <div class="rag-body">
-    <!-- Historique sidebar -->
-    <div class="rag-sidebar">
-      <div class="rag-sidebar-head">Historique</div>
-      <div id="rag-hist-list"></div>
-      <div style="flex:1"></div>
-      <button class="rag-new-btn" onclick="ragNewConv()">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nouveau
-      </button>
-    </div>
-
-    <!-- Zone principale -->
-    <div class="rag-main">
-      <div class="rag-msgs" id="rag-msgs">
-        <div class="rag-empty" id="rag-empty">
-          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span style="font-weight:500;color:var(--text2)">Posez une question sur vos données</span>
-          <span style="font-size:11px">Le RAG identifie les tables à croiser<br>et les jointures nécessaires</span>
-          <div class="rag-quick-q" id="rag-quick-q"></div>
-        </div>
-      </div>
-
-      <!-- Suggestions dynamiques -->
-      <div class="rag-suggestions" id="rag-suggestions" style="display:none"></div>
-
-      <!-- Zone saisie -->
-      <div class="rag-input-area">
-        <div class="rag-api-row">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text3)" stroke-width="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-          <select id="rag-provider" class="rag-api-provider" onchange="onProviderChange()">
-            <option value="local">🔍 Analyse locale</option>
-            <option value="claude">⚡ Claude (Anthropic)</option>
-            <option value="openai">🤖 OpenAI (GPT-4)</option>
-            <option value="mistral">🌊 Mistral AI</option>
-            <option value="ollama">🖥️ Ollama (local)</option>
-          </select>
-          <input id="rag-api-key" class="rag-api-key" type="password"
-            placeholder="Clé API..." style="display:none"
-            onchange="saveAPIKey()">
-          <input id="rag-ollama-url-chat" class="rag-api-key" type="text"
-            placeholder="http://localhost:11434" style="display:none"
-            onchange="saveAPIKey()">
-        </div>
-        <div id="rag-key-status" style="font-size:10px;color:var(--green);margin-bottom:5px;display:none">
-          ✓ Clé sauvegardée localement
-        </div>
-        <div class="rag-input-row">
-          <textarea id="rag-input" placeholder="Ex : Femmes des entreprises agricoles par agence..."
-            onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRAGMsg()}"></textarea>
-          <button class="rag-send-btn" onclick="sendRAGMsg()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-          </button>
-        </div>
-        <div style="font-size:10px;color:var(--text3);margin-top:5px;text-align:center">
-          Clé stockée dans votre navigateur uniquement · <span id="rag-model-label">Analyse locale sans LLM</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Modal Confirmation suppression -->
 <div class="overlay" id="modal-delete">
   <div class="modal" style="width:360px">
@@ -701,13 +423,15 @@ let STATE = {
   sharepointMode: false   // passe à true si la connexion SP réussit
 };
 
-const DOMAIN_COLORS = {
-  'Prestation':      '#534AB7',
-  'Cotisation':      '#D85A30',
-  'Recouvrement':    '#1D9E75',
-  'Immatriculation': '#378ADD',
-  'Referentiel':     '#BA7517',
-};
+// Palette de couleurs — s'adapte automatiquement aux domaines du CONFIG
+const COLOR_PALETTE = [
+  '#534AB7','#1D9E75','#D85A30','#378ADD','#D4537E','#BA7517',
+  '#7B5EA7','#2E8B8B','#C44D38','#4A7AB5','#A0522D','#6B8E23'
+];
+const DOMAIN_COLORS = {};
+CONFIG.DOMAINS.forEach((d, i) => {
+  DOMAIN_COLORS[d] = COLOR_PALETTE[i % COLOR_PALETTE.length];
+});
 const REL_CONFIG = {
   Certifiée:        { cls: 'pill-green', dot: '●', label: '✓ Certifiée' },
   'En validation':  { cls: 'pill-amber', dot: '◑', label: '◑ En validation' },
@@ -778,7 +502,62 @@ const DEMO_HISTORY = [
 // ══════════════════════════════════════════════════════════════
 //  SHAREPOINT API
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  BRIDGE postMessage — communication iframe ↔ page hôte SP
+// ══════════════════════════════════════════════════════════════
+let _pendingRequests = {};
+let _bridgeReady = false;
+let _bridgeQueue = [];
+let _msgId = 0;
+
+function isBridgeMode() {
+  try { return window.self !== window.top; } catch(e) { return true; }
+}
+
+// Envoyer une requête à la page hôte et attendre la réponse
+function bridgeCall(action, payload) {
+  return new Promise((resolve, reject) => {
+    const id = ++_msgId;
+    const timeout = setTimeout(() => {
+      delete _pendingRequests[id];
+      reject(new Error('BRIDGE_TIMEOUT:' + action));
+    }, 15000);
+    _pendingRequests[id] = { resolve, reject, timeout };
+    const msg = { type: 'SP_REQUEST', id, action, payload };
+    if (_bridgeReady) {
+      window.parent.postMessage(msg, 'https://cicnps.sharepoint.com');
+    } else {
+      _bridgeQueue.push(msg);
+    }
+  });
+}
+
+// Recevoir les réponses de la page hôte
+window.addEventListener('message', e => {
+  if (!e.origin.includes('sharepoint.com') && !e.origin.includes('github.io')) return;
+  const d = e.data;
+  if (d.type === 'SP_READY') {
+    _bridgeReady = true;
+    _bridgeQueue.forEach(m => window.parent.postMessage(m, 'https://cicnps.sharepoint.com'));
+    _bridgeQueue = [];
+    return;
+  }
+  if (d.type === 'SP_USER') {
+    window._spUser = d.user;
+    return;
+  }
+  if (d.type === 'SP_RESPONSE' && _pendingRequests[d.id]) {
+    const req = _pendingRequests[d.id];
+    clearTimeout(req.timeout);
+    delete _pendingRequests[d.id];
+    if (d.error) req.reject(new Error(d.error));
+    else req.resolve(d.result);
+  }
+});
+
+// API SP via bridge (iframe) ou directe (même domaine)
 async function spGet(list) {
+  if (isBridgeMode()) return bridgeCall('GET', { list });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items?$top=500`;
   const r = await fetch(url, { headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest() } });
   if (r.status === 404) throw new Error(`LIST_NOT_FOUND:${list}`);
@@ -788,6 +567,7 @@ async function spGet(list) {
   return d.d.results;
 }
 async function spPost(list, body) {
+  if (isBridgeMode()) return bridgeCall('POST', { list, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items`;
   const r = await fetch(url, {
     method: 'POST',
@@ -798,6 +578,7 @@ async function spPost(list, body) {
   return (await r.json()).d;
 }
 async function spPatch(list, id, body) {
+  if (isBridgeMode()) return bridgeCall('PATCH', { list, id, body });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, {
     method: 'POST',
@@ -806,6 +587,7 @@ async function spPatch(list, id, body) {
   });
 }
 async function spDelete(list, id) {
+  if (isBridgeMode()) return bridgeCall('DELETE', { list, id });
   const url = `${CONFIG.SHAREPOINT_SITE_URL}/_api/web/lists/getbytitle('${list}')/items(${id})`;
   await fetch(url, { method: 'DELETE', headers: { Accept: 'application/json;odata=verbose', 'X-RequestDigest': await getDigest(), 'IF-MATCH': '*' } });
 }
@@ -819,6 +601,19 @@ async function getDigest() {
   return _digest;
 }
 async function getCurrentUser() {
+  if (isBridgeMode()) {
+    // Attendre que la page hôte envoie l'utilisateur
+    return new Promise((resolve, reject) => {
+      if (window._spUser) { resolve(window._spUser); return; }
+      const t = setTimeout(() => reject(new Error('USER_TIMEOUT')), 10000);
+      const check = setInterval(() => {
+        if (window._spUser) {
+          clearInterval(check); clearTimeout(t);
+          resolve(window._spUser);
+        }
+      }, 100);
+    });
+  }
   const r = await fetch(`${CONFIG.SHAREPOINT_SITE_URL}/_api/web/currentuser`, { headers: { Accept: 'application/json;odata=verbose' } });
   const d = await r.json();
   return d.d;
@@ -828,7 +623,8 @@ async function getCurrentUser() {
 //  INIT
 // ══════════════════════════════════════════════════════════════
 async function init() {
-  // ── Remplir les selects depuis CONFIG ──
+  setLoader('Connexion à SharePoint...');
+  // Remplir selects config
   const ds = document.getElementById('domain-chips');
   CONFIG.DOMAINS.forEach(d => {
     const ch = document.createElement('span');
@@ -841,66 +637,134 @@ async function init() {
   const fr = document.getElementById('f-rel');
   CONFIG.RELIABILITY_LEVELS.forEach(r => { fr.innerHTML += `<option>${r}</option>`; });
 
-  // ── Branchement selon DATA_SOURCE ──
-  if (CONFIG.DATA_SOURCE === 'csv') {
-    setLoader('Chargement des données CSV...');
-    document.getElementById('user-name').textContent = 'Data Catalogue';
-    try {
+  try {
+    if (CONFIG.DATA_SOURCE === 'csv') {
+      // Mode CSV — pas d'authentification SP nécessaire
+      document.getElementById('user-name').textContent = 'Data Catalogue';
+      // En mode CSV, seuls les admins déclarés voient les outils d'édition
+      // (l'édition CSV se fait directement sur GitHub)
+      STATE.isAdmin = false;
+      document.getElementById('admin-tools').style.display = 'none';
+      setLoader('Chargement des données...');
       await loadFromCSV();
-      loadPersistedUsage();
-    } catch(e) {
-      showStatusError('⚠️ Erreur CSV : ' + e.message + ' — Vérifiez que data/tables.csv existe sur GitHub');
-      STATE.tables = []; STATE.columns = []; STATE.history = [];
-    }
-  } else {
-    // ── Mode SharePoint ──
-    setLoader('Chargement du catalogue CNPS...');
-    try {
+    } else {
       const user = await getCurrentUser();
       STATE.currentUser = user;
       STATE.isAdmin = CONFIG.ADMIN_EMAILS.map(e=>e.toLowerCase()).includes((user.Email||'').toLowerCase());
       document.getElementById('user-name').textContent = user.Title || user.Email;
       if (STATE.isAdmin) {
         document.getElementById('admin-badge').style.display = 'inline';
-        const at = document.getElementById('admin-tools');
-        if (at) at.style.display = 'flex';
+        document.getElementById('admin-tools').style.display = 'flex';
       }
       STATE.sharepointMode = true;
       setLoader('Chargement du catalogue...');
       await loadFromSharePoint();
-      loadPersistedUsage();
-    } catch(e) {
-      const isOnSP = window.location.hostname.includes('sharepoint.com');
-      const errMsg = e.message || '';
-      if (errMsg.startsWith('LIST_NOT_FOUND:')) {
-        document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
-        showStatusError(`⚠️ Liste introuvable : "${errMsg.split(':')[1]}" — vérifiez le nom dans CONFIG`);
-        STATE.tables = []; STATE.columns = []; STATE.history = [];
-      } else {
-        // Fallback mode démo
-        document.getElementById('user-name').textContent = 'Mode démo';
-        STATE.tables = DEMO_TABLES;
-        STATE.columns = DEMO_COLUMNS;
-        STATE.history = DEMO_HISTORY;
-        const demoDomains = ['Finance','RH','Clients','Référentiel'];
-        STATE.tables = DEMO_TABLES.map(t => ({
-          ...t, Domain: CONFIG.DOMAINS[demoDomains.indexOf(t.Domain) % CONFIG.DOMAINS.length] || t.Domain
-        }));
-        loadPersistedUsage();
-        showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
-        const at = document.getElementById('admin-tools');
-        if (at) at.style.display = 'flex';
-        STATE.isAdmin = true;
-        document.getElementById('admin-badge').style.display = 'inline';
-      }
+    }
+  } catch(e) {
+    const isOnSP = CONFIG.DATA_SOURCE !== 'csv' && window.location.hostname.includes('sharepoint.com');
+    const errMsg = e.message || '';
+    
+    if (errMsg.startsWith('LIST_NOT_FOUND:')) {
+      // SP connecté mais liste introuvable
+      const listName = errMsg.split(':')[1];
+      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+      showStatusError(`⚠️ Liste introuvable : "${listName}" — Vérifiez le nom exact dans SharePoint et dans CONFIG`);
+      // Pas de mode démo, graphe vide avec message
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
+    } else if (!isOnSP || errMsg.includes('Failed to fetch') || !STATE.currentUser) {
+      // Pas sur SP ou non joignable → mode démo
+      document.getElementById('user-name').textContent = 'Mode démo';
+      STATE.tables = DEMO_TABLES;
+      STATE.columns = DEMO_COLUMNS;
+      STATE.history = DEMO_HISTORY;
+      showStatusWarn('⚠️ Mode démo — données locales (SharePoint non connecté)');
+      document.getElementById('admin-tools').style.display = 'flex';
+      STATE.isAdmin = true;
+      document.getElementById('admin-badge').style.display = 'inline';
+    } else {
+      // SP joignable mais autre erreur
+      document.getElementById('user-name').textContent = STATE.currentUser?.Title || 'Connecté';
+      showStatusError(`⚠️ Erreur de chargement — ${errMsg}`);
+      STATE.tables = []; STATE.columns = []; STATE.history = [];
     }
   }
 
+  loadPersistedUsage();
   hideLoader();
+  // Small delay to ensure DOM is rendered before canvas sizing
   setTimeout(() => {
     initGraph();
-    if (STATE.tables.length === 0) showEmptyState();
+    // If connected but no tables yet, show a helpful message
+    if (STATE.tables.length === 0) {
+      showEmptyState();
+    }
   }, 50);
+}
+
+// ── CSV parser ──────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map(line => {
+    // Handle quoted fields with commas inside
+    const fields = [];
+    let cur = '', inQuote = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQuote = !inQuote; }
+      else if (c === ',' && !inQuote) { fields.push(cur.trim()); cur = ''; }
+      else { cur += c; }
+    }
+    fields.push(cur.trim());
+    const obj = {};
+    headers.forEach((h, i) => { obj[h] = (fields[i] || '').replace(/^"|"$/g, ''); });
+    return obj;
+  });
+}
+
+async function fetchCSV(filename) {
+  const url = `${CONFIG.DATA_BASE_URL}/${filename}?_=${Date.now()}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`CSV_NOT_FOUND:${filename}`);
+  return parseCSV(await r.text());
+}
+
+async function loadFromCSV() {
+  const [tablesRaw, colsRaw, histRaw] = await Promise.all([
+    fetchCSV('tables.csv'),
+    fetchCSV('colonnes.csv'),
+    fetchCSV('historique.csv').catch(() => [])
+  ]);
+
+  STATE.tables = tablesRaw.map((t, i) => ({
+    id: t.Id || String(i + 1),
+    Title: t.Titre || t.Title || t.NomTable || '',
+    Domain: t.Domaine || t.Domain || '',
+    Description: t.Description || '',
+    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
+    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
+    Owner: t.Proprietaire || t.Owner || '',
+    Frequency: t.Frequence || t.Frequency || '',
+    Source: t.Source || '',
+    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
+    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
+  }));
+
+  STATE.columns = colsRaw.map((c, i) => ({
+    id: String(i + 1),
+    TableId: c.IdTable || c.TableId || '',
+    ColumnName: c.NomColonne || c.ColumnName || '',
+    DataType: c.TypeDonnee || c.DataType || '',
+    KeyType: c.TypeCle || c.KeyType || '',
+    Description: c.Description || ''
+  }));
+
+  STATE.history = histRaw.map(h => ({
+    TableId: h.IdTable || h.TableId || '',
+    Date: h.DateModification || h.Date || '',
+    Note: h.Note || ''
+  }));
 }
 
 async function loadFromSharePoint() {
@@ -909,7 +773,6 @@ async function loadFromSharePoint() {
     spGet(CONFIG.LIST_COLUMNS),
     spGet(CONFIG.LIST_HISTORY)
   ]);
-  // Hide any previous error
   document.getElementById('status-bar').style.display = 'none';
   STATE.tables = tables.map(t => ({
     id: String(t.Id), Title: t.Titre, Domain: t.Domaine, Description: t.Description,
@@ -955,80 +818,6 @@ function showStatusOk(msg) {
   bar.style.display = 'block';
   setTimeout(() => { bar.style.display = 'none'; }, 4000);
 }
-
-// ══════════════════════════════════════════════════════════════
-//  CHARGEMENT CSV
-// ══════════════════════════════════════════════════════════════
-function parseCSV(text) {
-  const lines = text.trim().split(/
-?
-/);
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).filter(l => l.trim()).map(line => {
-    const fields = [];
-    let cur = '', inQ = false;
-    for (let i = 0; i < line.length; i++) {
-      const c = line[i];
-      if (c === '"') { inQ = !inQ; }
-      else if (c === ',' && !inQ) { fields.push(cur.trim().replace(/^"|"$/g,'')); cur = ''; }
-      else { cur += c; }
-    }
-    fields.push(cur.trim().replace(/^"|"$/g,''));
-    const obj = {};
-    headers.forEach((h, i) => { obj[h] = fields[i] !== undefined ? fields[i] : ''; });
-    return obj;
-  });
-}
-
-async function fetchCSV(filename) {
-  const base = CONFIG.DATA_BASE_URL || 'https://raw.githubusercontent.com/sudosu777/data-catalogue/main/data';
-  const url = base + '/' + filename + '?v=' + Date.now();
-  const r = await fetch(url);
-  if (!r.ok) throw new Error('CSV_NOT_FOUND:' + filename + ' (' + r.status + ')');
-  return parseCSV(await r.text());
-}
-
-async function loadFromCSV() {
-  setLoader('Chargement tables...');
-  const tablesRaw = await fetchCSV('tables.csv');
-  setLoader('Chargement colonnes...');
-  const colsRaw = await fetchCSV('colonnes.csv').catch(() => []);
-  setLoader('Chargement historique...');
-  const histRaw = await fetchCSV('historique.csv').catch(() => []);
-
-  STATE.tables = tablesRaw.map((t, i) => ({
-    id: t.Id || String(i + 1),
-    Title: t.Titre || t.Title || t.NomTable || 'Table ' + (i+1),
-    Domain: t.Domaine || t.Domain || CONFIG.DOMAINS[0] || '',
-    Description: t.Description || '',
-    DescriptionLong: t.DescriptionLongue || t.DescriptionLong || '',
-    Reliability: t.Fiabilite || t.Reliability || 'Non vérifiée',
-    Owner: t.Proprietaire || t.Owner || '',
-    Frequency: t.Frequence || t.Frequency || '',
-    Source: t.Source || '',
-    Sharepoint: t.LienSharePoint || t.Sharepoint || '',
-    Usage: parseInt(t.NombreUsages || t.Usage || '0') || 0
-  }));
-
-  STATE.columns = colsRaw.map((c, i) => ({
-    id: String(i + 1),
-    TableId: c.IdTable || c.TableId || '',
-    ColumnName: c.NomColonne || c.ColumnName || '',
-    DataType: c.TypeDonnee || c.DataType || '',
-    KeyType: c.TypeCle || c.KeyType || '',
-    Description: c.Description || ''
-  }));
-
-  STATE.history = histRaw.map(h => ({
-    TableId: h.IdTable || h.TableId || '',
-    Date: h.DateModification || h.Date || '',
-    Note: h.Note || ''
-  }));
-
-  document.getElementById('status-bar').style.display = 'none';
-}
-
 function setLoader(msg) { document.getElementById('loader-msg').textContent = msg; document.getElementById('loader').style.display = 'flex'; }
 function hideLoader() { document.getElementById('loader').style.display = 'none'; document.getElementById('app').style.display = 'flex'; }
 
@@ -1058,6 +847,59 @@ function buildLinks() {
     }
   });
   return links;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COMPTEUR D'USAGE PERSISTANT (localStorage — une fois par jour)
+// ══════════════════════════════════════════════════════════════
+const USAGE_KEY = 'dc_usage_counts';
+const USAGE_DATE_KEY = 'dc_usage_dates';
+
+function loadPersistedUsage() {
+  try {
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    // Appliquer les compteurs persistés aux tables
+    STATE.tables.forEach(t => {
+      if (counts[t.id] !== undefined) {
+        t.Usage = Math.max(t.Usage || 0, counts[t.id]);
+        const gn = gNodes && gNodes.find(n => n.id === t.id);
+        if (gn) gn.Usage = t.Usage;
+      }
+    });
+  } catch(e) {}
+}
+
+function incrementUsage(node) {
+  const today = new Date().toISOString().split('T')[0];
+  try {
+    const dates = JSON.parse(localStorage.getItem(USAGE_DATE_KEY) || '{}');
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+
+    // Vérifier si déjà consulté aujourd'hui
+    if (dates[node.id] === today) {
+      // Déjà compté aujourd'hui — juste sélectionner sans incrémenter
+      return;
+    }
+
+    // Incrémenter
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+
+    // Persister
+    dates[node.id] = today;
+    counts[node.id] = node.Usage;
+    localStorage.setItem(USAGE_DATE_KEY, JSON.stringify(dates));
+    localStorage.setItem(USAGE_KEY, JSON.stringify(counts));
+
+    // Sync SharePoint si connecté
+    if (STATE.sharepointMode) {
+      spPatch(CONFIG.LIST_TABLES, node.id, { NombreUsages: node.Usage }).catch(() => {});
+    }
+  } catch(e) {
+    // localStorage indisponible — incrémenter en mémoire seulement
+    node.Usage = Math.min((node.Usage || 0) + 1, 9999);
+    STATE.tables.find(t => t.id === node.id).Usage = node.Usage;
+  }
 }
 
 function initGraph() {
@@ -1208,9 +1050,8 @@ function setupCanvasEvents(canvas, W, H) {
     const [mx, my] = toWorld(e, canvas);
     const n = hitTest(mx, my);
     if (n && visible(n)) {
-      n.Usage = Math.min((n.Usage||0)+1, 99);
-      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
-      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      // Incrémenter seulement une fois par jour par table
+      incrementUsage(n);
       STATE.selectedId = n.id;
       renderPanel(n);
     }
@@ -1339,18 +1180,14 @@ function renderPanel(node) {
     <div class="action-row">
       ${node.Sharepoint ? `<button class="btn btn-primary" onclick="window.open('${node.Sharepoint}','_blank')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-        SharePoint
-      </button>` : ''}
+        Accès SharePoint
+      </button>` : '<span style="font-size:11px;color:var(--text3);padding:4px 0">Aucun lien SharePoint renseigné</span>'}
       <button class="btn" onclick="exportTable('${node.id}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exporter JSON
       </button>
       ${STATE.isAdmin ? `
-        <button class="btn" onclick="ragAskAboutTable('${node.Title}')">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        Assistant
-      </button>
-      <button class="btn" onclick="openEditModal('${node.id}')">
+        <button class="btn" onclick="openEditModal('${node.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Modifier
         </button>
@@ -1551,698 +1388,7 @@ window.addEventListener('resize', debouncedInitGraph);
 if (typeof ResizeObserver !== 'undefined') {
   new ResizeObserver(debouncedInitGraph).observe(document.getElementById('graph-wrap'));
 }
-
-
-// ══════════════════════════════════════════════════════════════
-//  MODULE RAG CHAT — Assistant Data CNPS
-// ══════════════════════════════════════════════════════════════
-const RAG_STORE_KEY = 'cnps_rag_conversations';
-const RAG_KEY_STORE = 'cnps_rag_api_keys';
-
-let ragState = {
-  open: false,
-  conversations: [],   // [{id, title, date, messages:[]}]
-  currentId: null,
-  typing: false
-};
-
-// ── Persistance ──
-function ragLoad() {
-  try {
-    const d = JSON.parse(localStorage.getItem(RAG_STORE_KEY) || '[]');
-    ragState.conversations = d;
-  } catch(e) { ragState.conversations = []; }
-}
-function ragSave() {
-  try { localStorage.setItem(RAG_STORE_KEY, JSON.stringify(ragState.conversations)); } catch(e) {}
-}
-function saveAPIKey() {
-  try {
-    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
-    const prov = document.getElementById('rag-provider').value;
-    const key = document.getElementById('rag-api-key').value.trim();
-    const url = document.getElementById('rag-ollama-url-chat').value.trim();
-    if (key) keys[prov] = key;
-    if (url) keys['ollama_url'] = url;
-    localStorage.setItem(RAG_KEY_STORE, JSON.stringify(keys));
-    const st = document.getElementById('rag-key-status');
-    st.style.display = 'block';
-    setTimeout(() => st.style.display = 'none', 2000);
-  } catch(e) {}
-}
-function loadAPIKey(prov) {
-  try {
-    const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
-    return { key: keys[prov] || '', url: keys['ollama_url'] || 'http://localhost:11434' };
-  } catch(e) { return { key: '', url: 'http://localhost:11434' }; }
-}
-
-// ── UI ──
-function toggleRAGChat() {
-  ragState.open = !ragState.open;
-  document.getElementById('rag-chat-panel').classList.toggle('open', ragState.open);
-  if (ragState.open) { ragRenderHist(); ragInitEmpty(); }
-}
-
-function onProviderChange() {
-  const prov = document.getElementById('rag-provider').value;
-  const keyIn = document.getElementById('rag-api-key');
-  const urlIn = document.getElementById('rag-ollama-url-chat');
-  const labels = {
-    local: 'Analyse locale sans LLM',
-    claude: 'Claude Sonnet — Anthropic',
-    openai: 'GPT-4o — OpenAI',
-    mistral: 'Mistral Large — Mistral AI',
-    ollama: 'Modèle local — Ollama'
-  };
-  document.getElementById('rag-model-label').textContent = labels[prov] || '';
-  keyIn.style.display = prov === 'ollama' || prov === 'local' ? 'none' : 'block';
-  urlIn.style.display = prov === 'ollama' ? 'block' : 'none';
-  if (prov !== 'local' && prov !== 'ollama') {
-    const saved = loadAPIKey(prov);
-    keyIn.value = saved.key ? '••••••••••••' : '';
-    keyIn.placeholder = prov === 'claude' ? 'sk-ant-...' : prov === 'openai' ? 'sk-...' : 'Clé API...';
-  }
-  if (prov === 'ollama') {
-    const saved = loadAPIKey(prov);
-    urlIn.value = saved.url;
-  }
-}
-
-function ragNewConv() {
-  const id = 'conv_' + Date.now();
-  ragState.conversations.unshift({ id, title: 'Nouvelle conversation', date: new Date().toLocaleDateString('fr-FR'), messages: [] });
-  ragState.currentId = id;
-  ragSave();
-  ragRenderHist();
-  ragRenderMessages([]);
-  ragInitEmpty();
-}
-
-function ragSelectConv(id) {
-  ragState.currentId = id;
-  ragRenderHist();
-  const conv = ragState.conversations.find(c => c.id === id);
-  if (conv) ragRenderMessages(conv.messages);
-}
-
-function ragGetCurrent() {
-  return ragState.conversations.find(c => c.id === ragState.currentId);
-}
-
-function ragRenderHist() {
-  const list = document.getElementById('rag-hist-list');
-  if (!list) return;
-  if (!ragState.conversations.length) {
-    list.innerHTML = '<div style="padding:10px;font-size:11px;color:var(--text3);text-align:center">Aucun historique</div>';
-    return;
-  }
-  list.innerHTML = ragState.conversations.map(c => `
-    <div class="rag-hist-item ${c.id === ragState.currentId ? 'active' : ''}" onclick="ragSelectConv('${c.id}')">
-      ${escH(c.title)}
-      <div class="rag-hist-date">${c.date}</div>
-    </div>`).join('');
-}
-
-function ragInitEmpty() {
-  const conv = ragGetCurrent();
-  const isEmpty = !conv || !conv.messages.length;
-  const emptyEl = document.getElementById('rag-empty');
-  if (!emptyEl) return;
-  emptyEl.style.display = isEmpty ? 'flex' : 'none';
-  if (isEmpty) {
-    const qq = document.getElementById('rag-quick-q');
-    const questions = [
-      'Femmes des entreprises agricoles par agence',
-      'Montant des cotisations ATMP 2024 par branche',
-      'Employeurs avec majorations de retard en cours',
-      'Prestations retraite consolidées (national + IPRAO)',
-      'Salariés actifs par secteur d'activité'
-    ];
-    if (qq) qq.innerHTML = questions.map(q =>
-      `<button class="rag-quick-q-btn" onclick="ragQuickQ(this)">${escH(q)}</button>`
-    ).join('');
-  }
-}
-
-function ragQuickQ(btn) {
-  document.getElementById('rag-input').value = btn.textContent;
-  sendRAGMsg();
-}
-
-function ragRenderMessages(messages) {
-  const el = document.getElementById('rag-msgs');
-  const emptyEl = document.getElementById('rag-empty');
-  if (!el) return;
-  if (!messages.length) {
-    el.innerHTML = '';
-    if (emptyEl) { el.appendChild(emptyEl); emptyEl.style.display = 'flex'; }
-    document.getElementById('rag-suggestions').style.display = 'none';
-    return;
-  }
-  if (emptyEl) emptyEl.style.display = 'none';
-  el.innerHTML = messages.map(m => m.role === 'user' ? renderUserMsg(m) : renderBotMsg(m)).join('');
-  el.scrollTop = el.scrollHeight;
-}
-
-function renderUserMsg(m) {
-  return `<div class="rag-msg-user">${escH(m.content)}</div>`;
-}
-
-function renderBotMsg(m) {
-  const d = m.data || {};
-  const tables = d.tables || [];
-  const cols = d.colonnes || [];
-  const joins = d.jointures || [];
-  const note = d.note || '';
-
-  const chips = tables.map(name => {
-    const t = STATE.tables.find(t => t.Title === name);
-    const col = t ? (DOMAIN_COLORS[t.Domain] || '#888') : '#888';
-    return `<span class="rag-chip" style="background:${col}18;border-color:${col};color:${col}"
-      onclick="ragOpenTable('${escH(name)}')" title="Voir dans le graphe">
-      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
-      ${escH(name)}</span>`;
-  }).join('');
-
-  const joinsHTML = joins.length ? `
-    <div class="rag-joins">
-      <div class="rag-joins-label">Jointures</div>
-      ${joins.map(j => escH(j)).join('<br>')}
-    </div>` : '';
-
-  const colsHTML = cols.length ? `
-    <div style="margin:8px 0">
-      <div class="sec-lbl" style="margin-bottom:4px">Colonnes clés</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10.5px">
-        <thead><tr>
-          ${['Table','Colonne','Type','Clé','Rôle'].map(h =>
-            `<th style="padding:3px 6px;text-align:left;border-bottom:0.5px solid var(--border);color:var(--text3);font-weight:500;font-size:9.5px;text-transform:uppercase">${h}</th>`
-          ).join('')}
-        </tr></thead>
-        <tbody>${cols.map((c,i) => {
-          const t = STATE.tables.find(t=>t.Title===c.table);
-          const col = t ? (DOMAIN_COLORS[t.Domain]||'#888') : '#888';
-          const bg = i%2===0 ? 'var(--bg)' : 'var(--bg2)';
-          const kb = c.cle ? `<span style="background:var(--purple-light);color:var(--purple);padding:1px 4px;border-radius:3px;font-family:monospace;font-size:9px">${c.cle}</span>` : '';
-          return `<tr style="background:${bg}">
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-weight:500;color:${col};font-size:10px">${escH(c.table)}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-family:monospace;font-size:9.5px;color:var(--purple)">${escH(c.colonne)}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);font-size:9px"><span style="background:var(--bg3);padding:1px 4px;border-radius:3px;font-family:monospace">${escH(c.type)}</span></td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border)">${kb}</td>
-            <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:10px">${escH(c.utilisation||'—')}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>` : '';
-
-  return `<div class="rag-msg-bot"><div class="rag-msg-bot-inner">
-    ${tables.length ? `<div class="sec-lbl" style="margin-bottom:4px">${tables.length} table(s) identifiée(s)</div>
-    <div class="rag-tables-chips">${chips}</div>` : ''}
-    <div style="color:var(--text2);font-size:12px;line-height:1.6;margin:6px 0">${(d.explication||m.content||'').replace(/
-/g,'<br>')}</div>
-    ${joinsHTML}${colsHTML}
-    <div class="rag-actions">
-      ${tables.length ? `<button class="rag-action-btn primary" onclick="ragExportCSV(${JSON.stringify(d).replace(/"/g,'&quot;')})">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Export CSV</button>` : ''}
-      ${tables.length ? `<button class="rag-action-btn" onclick="ragHighlightTables(${JSON.stringify(tables)})">
-        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        Voir dans le graphe</button>` : ''}
-      ${note ? `<span style="font-size:10px;color:var(--amber);margin-left:auto;align-self:center">⚠ ${escH(note)}</span>` : ''}
-    </div>
-  </div></div>`;
-}
-
-function escH(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
-
-function ragOpenTable(name) {
-  const n = gNodes && gNodes.find(n => n.Title === name || n.title === name || n.id === name);
-  if (n) { STATE.selectedId = n.id; renderPanel(n); if (!ragState.open) toggleRAGChat(); }
-}
-
-function ragHighlightTables(tables) {
-  if (!gNodes) return;
-  STATE.filter.search = '';
-  document.getElementById('search').value = '';
-  if (sim) sim.alpha(.3).restart();
-  if (tables.length === 1) {
-    const n = gNodes.find(n => n.Title === tables[0]);
-    if (n) { STATE.selectedId = n.id; renderPanel(n); }
-  }
-}
-
-// ── LLM CALLS ──
-function ragBuildContext(question) {
-  const ctx = STATE.tables.map(t => {
-    const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilité: ${t.Reliability} | Source: ${t.Source||''}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => `${c.ColumnName}(${c.DataType}${c.KeyType?','+c.KeyType:''}): ${c.Description||''}`).join(' | ')}`;
-  }).join('
-
-');
-
-  return `Tu es un expert data de la CNPS (Caisse Nationale de Prévoyance Sociale, Côte d'Ivoire).
-Tu analyses le catalogue de données du Département Statistique et Actuariat (DSA).
-
-CATALOGUE COMPLET:
-${ctx}
-
-RÈGLES DE RÉPONSE:
-- Réponds UNIQUEMENT en JSON valide, sans markdown
-- Identifie les tables pertinentes avec leurs noms EXACTS du catalogue
-- Explique les jointures en français clair et concis
-- Pour les secteurs d'activité, CODE_SEC 'A' = agriculture
-- Les montants sont en FCFA
-- Les 4 branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604)
-
-FORMAT JSON ATTENDU:
-{
-  "tables": ["NomExact1", "NomExact2"],
-  "explication": "Explication courte en français",
-  "jointures": ["TABLE_A.COL = TABLE_B.COL", "Filtre: CONDITION"],
-  "colonnes": [
-    {"table": "NomTable", "colonne": "NOM_COL", "type": "TYPE", "cle": "PK/FK/", "description": "...", "utilisation": "Pourquoi cette colonne"}
-  ],
-  "suggestions": ["Question de relance 1", "Question de relance 2", "Question de relance 3"]
-}`;
-}
-
-async function callRAGLLM(question, history) {
-  const prov = document.getElementById('rag-provider').value;
-  if (prov === 'local') throw new Error('LOCAL');
-
-  const stored = loadAPIKey(prov);
-  const keyInput = document.getElementById('rag-api-key').value.trim();
-  const key = (keyInput && !keyInput.startsWith('••')) ? keyInput : stored.key;
-
-  const sysPrompt = ragBuildContext(question);
-  const msgs = history.filter(m=>m.role==='user'||m.role==='assistant')
-    .slice(-6).map(m => ({ role: m.role, content: m.role==='user' ? m.content : JSON.stringify(m.data||{explication:m.content}) }));
-  msgs.push({ role: 'user', content: question });
-
-  if (prov === 'claude') {
-    if (!key) throw new Error('Clé API Claude manquante');
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01' },
-      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, system: sysPrompt, messages: msgs })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message);
-    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-
-  } else if (prov === 'openai') {
-    if (!key) throw new Error('Clé API OpenAI manquante');
-    const r = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
-      body: JSON.stringify({ model:'gpt-4o', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message);
-    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
-
-  } else if (prov === 'mistral') {
-    if (!key) throw new Error('Clé API Mistral manquante');
-    const r = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
-      body: JSON.stringify({ model:'mistral-large-latest', response_format:{type:'json_object'}, messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error.message || JSON.stringify(d.error));
-    return JSON.parse(d.choices?.[0]?.message?.content||'{}');
-
-  } else if (prov === 'ollama') {
-    const url = document.getElementById('rag-ollama-url-chat').value || stored.url || 'http://localhost:11434';
-    const r = await fetch(url+'/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({ model:'mistral', stream:false, format:'json',
-        messages:[{role:'system',content:sysPrompt},...msgs] })
-    });
-    if (!r.ok) throw new Error('Ollama : vérifiez que le serveur tourne sur '+url);
-    const d = await r.json();
-    const txt = d.message?.content || d.response || '{}';
-    return JSON.parse(txt.replace(/```json|```/g,'').trim());
-  }
-  throw new Error('Fournisseur inconnu');
-}
-
-// ── Analyse locale (sans LLM) ──
-function ragLocalAnalysis(question) {
-  const ql = question.toLowerCase();
-  const words = ql.split(/\s+/).filter(w=>w.length>2);
-
-  const domainKW = {
-    'prestation': ['Prestation'], 'retraite': ['Prestation'],
-    'cotisation': ['Cotisation'], 'debit': ['Cotisation'], 'majoration': ['Cotisation'],
-    'employe': ['Recouvrement','Immatriculation'], 'employeur': ['Recouvrement'],
-    'salari': ['Immatriculation'], 'salarié': ['Immatriculation'],
-    'agence': ['Referentiel'], 'branche': ['Referentiel'], 'date': ['Referentiel']
-  };
-
-  const targetDomains = new Set();
-  Object.entries(domainKW).forEach(([kw,doms]) => {
-    if (words.some(w=>w.includes(kw))) doms.forEach(d=>targetDomains.add(d));
-  });
-
-  const scored = STATE.tables.map(t => {
-    let s = targetDomains.has(t.Domain) ? 8 : 0;
-    const hay = (t.Title+' '+t.Description+' '+
-      STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')
-    ).toLowerCase();
-    words.forEach(w => { if(hay.includes(w)) s+=2; });
-    if (ql.includes('femme') && t.id==='2') s+=10;
-    if (ql.includes('agence') && (t.Title.includes('AGENCE')||t.Title.includes('EMPLOYEUR'))) s+=8;
-    if (ql.includes('agricol') && t.Title.includes('EMPLOY')) s+=8;
-    if (ql.includes('retraite') && (t.Title.includes('RETRAITE')||t.Title.includes('PRESTA'))) s+=6;
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
-  const joins = [];
-  scored.forEach(ta => {
-    STATE.columns.filter(c=>c.TableId===ta.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==ta.id);
-      if(pk){ const tgt=STATE.tables.find(t=>t.id===pk.TableId);
-        if(tgt&&scored.find(s=>s.id===tgt.id)) joins.push(`${ta.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);
-      }
-    });
-  });
-
-  const suggestions = [
-    'Ventiler par branche (PF/ATMP/RETRAITE/AM)',
-    'Filtrer par période spécifique',
-    'Ajouter la dimension agence'
-  ];
-
-  return {
-    tables: scored.map(t=>t.Title),
-    explication: scored.length
-      ? `${scored.length} table(s) identifiée(s) par analyse locale du catalogue. Pour une explication détaillée des jointures, activez un modèle LLM.`
-      : 'Aucune table correspondante trouvée. Reformulez votre question.',
-    jointures: [...new Set(joins)],
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).slice(0,4).map(c=>({
-      table:t.Title, colonne:c.ColumnName, type:c.DataType, cle:c.KeyType||'',
-      description:c.Description||'', utilisation:c.KeyType==='PK'?'Clé primaire':c.KeyType==='FK'?'Clé de jointure':'Valeur à analyser'
-    }))),
-    suggestions,
-    note: 'Analyse locale — activez Claude/OpenAI/Mistral pour une analyse sémantique'
-  };
-}
-
-// ── Message envoyé ──
-async function sendRAGMsg() {
-  const input = document.getElementById('rag-input');
-  const q = input.value.trim();
-  if (!q || ragState.typing) return;
-
-  if (!ragState.currentId) ragNewConv();
-  const conv = ragGetCurrent();
-  if (!conv) return;
-
-  input.value = '';
-  document.getElementById('rag-suggestions').style.display = 'none';
-
-  conv.messages.push({ role:'user', content:q });
-  if (conv.title === 'Nouvelle conversation') conv.title = q.slice(0,28)+(q.length>28?'…':'');
-  ragSave();
-  ragRenderMessages(conv.messages);
-  ragRenderHist();
-
-  ragState.typing = true;
-  const typingEl = document.createElement('div');
-  typingEl.className = 'rag-typing';
-  typingEl.innerHTML = '<div class="rag-dot"></div><div class="rag-dot"></div><div class="rag-dot"></div>';
-  document.getElementById('rag-msgs').appendChild(typingEl);
-  document.getElementById('rag-msgs').scrollTop = 9999;
-
-  let data;
-  try {
-    const prov = document.getElementById('rag-provider').value;
-    if (prov === 'local') {
-      await new Promise(r=>setTimeout(r,400));
-      data = ragLocalAnalysis(q);
-    } else {
-      data = await callRAGLLM(q, conv.messages.slice(0,-1));
-    }
-  } catch(e) {
-    if (e.message === 'LOCAL') {
-      data = ragLocalAnalysis(q);
-    } else {
-      data = { tables:[], explication:'Erreur : '+e.message, jointures:[], colonnes:[], suggestions:[] };
-    }
-  }
-
-  ragState.typing = false;
-  typingEl.remove();
-
-  const botMsg = { role:'assistant', content: data.explication||'', data };
-  conv.messages.push(botMsg);
-  ragSave();
-  ragRenderMessages(conv.messages);
-
-  if (data.suggestions?.length) {
-    const suggEl = document.getElementById('rag-suggestions');
-    suggEl.style.display = 'flex';
-    suggEl.innerHTML = data.suggestions.slice(0,3).map(s =>
-      `<button class="rag-sugg-btn" onclick="ragSuggClick(this)">${escH(s)}</button>`
-    ).join('');
-  }
-}
-
-function ragSuggClick(btn) {
-  document.getElementById('rag-input').value = btn.textContent;
-  sendRAGMsg();
-}
-
-function ragExportCSV(data) {
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE CNPS — ASSISTANT RAG
-';
-  csv += 'TABLES IDENTIFIÉES
-Table,Domaine,Fiabilité,Lien SharePoint
-';
-  (data.tables||[]).forEach(n=>{
-    const t=STATE.tables.find(t=>t.Title===n);
-    if(t) csv+=`"${t.Title}","${t.Domain}","${t.Reliability}","${t.Sharepoint||''}"
-`;
-  });
-  csv += '
-EXPLICATION
-"'+(data.explication||'').replace(/"/g,"''")+'"';
-  csv += '
-
-JOINTURES
-';
-  (data.jointures||[]).forEach(j=>{ csv+=`"${j}"
-`; });
-  csv += '
-COLONNES
-Table,Colonne,Type,Clé,Description,Utilisation
-';
-  (data.colonnes||[]).forEach(c=>{
-    csv+=`"${c.table}","${c.colonne}","${c.type}","${c.cle||''}","${(c.description||'').replace(/"/g,"''")}","${(c.utilisation||'').replace(/"/g,"''")}")
-`;
-  });
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='RAG_CNPS_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
-}
-
-// Init RAG au chargement
-function initRAGChat() {
-  ragLoad();
-  if (!ragState.conversations.length) ragNewConv();
-  else ragState.currentId = ragState.conversations[0].id;
-}
-
-// Appel depuis le graphe — clic sur nœud ouvre le chat pré-rempli
-function ragAskAboutTable(tableName) {
-  if (!ragState.open) toggleRAGChat();
-  setTimeout(() => {
-    document.getElementById('rag-input').value = `Parlez-moi de la table ${tableName} et comment l'utiliser`;
-    sendRAGMsg();
-  }, 300);
-}
-
-// RAG button injected directly in renderPanel below
-
-let _ragResult = null; // legacy compat
-function openRAG() { toggleRAGChat(); } // legacy compat
-
-
-document.addEventListener('change', e => {
-  if (e.target.id !== 'rag-model') return;
-  document.getElementById('rag-key').style.display = e.target.value === 'claude' ? 'block' : 'none';
-  document.getElementById('rag-ollama-url').style.display = e.target.value === 'ollama' ? 'block' : 'none';
-});
-
-function openRAG() {
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'none';
-  document.getElementById('rag-question').value = '';
-  document.getElementById('rag-status').textContent = '';
-  openModal('modal-rag');
-}
-
-function buildContext() {
-  return STATE.tables.map(t => {
-    const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilite: ${t.Reliability} | Lien: ${t.Sharepoint||'non renseigne'}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => c.ColumnName+'('+c.DataType+(c.KeyType?','+c.KeyType:'')+'):'+( c.Description||'')).join(' | ')}`;
-  }).join('
-
-');
-}
-
-function localRAG(q) {
-  const ql = q.toLowerCase();
-  const domMap = {'salarie':['Salaries'],'employe':['Salaries'],'employeur':['Recouvrement'],'cotisation':['Cotisations'],'prestation':['Prestation'],'recouvrement':['Recouvrement'],'assure':['Prestation','Cotisations']};
-  const domSet = new Set();
-  // Map generic keywords to CONFIG domains
-  CONFIG.DOMAINS.forEach(d => { const dl = d.toLowerCase(); if (ql.includes(dl)) domSet.add(d); });
-  Object.entries(domMap).forEach(([kw,doms]) => { if(ql.includes(kw)) doms.forEach(d => { const found = CONFIG.DOMAINS.find(cd => cd.toLowerCase().includes(d.toLowerCase())); if(found) domSet.add(found); }); });
-  const words = ql.split(/\s+/).filter(w => w.length > 3);
-  const scored = STATE.tables.map(t => {
-    let s = domSet.has(t.Domain) ? 10 : 0;
-    const hay = (t.Title+' '+t.Description+' '+STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')).toLowerCase();
-    words.forEach(w => { if (hay.includes(w)) s += 2; });
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
-  const joins = [];
-  scored.forEach(t => {
-    STATE.columns.filter(c=>c.TableId===t.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==t.id);
-      if(pk){const tgt=STATE.tables.find(tt=>tt.id===pk.TableId); if(tgt&&scored.find(ss=>ss.id===tgt.id)) joins.push(`${t.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);}
-    });
-  });
-
-  const expl = scored.length===0 ? 'Aucune table correspondante trouvee dans le catalogue.'
-    : scored.length+' table(s) identifiee(s) :
-• '+scored.map(t=>t.Title+' ('+t.Domain+')').join('
-• ')
-      +(joins.length?'
-
-Jointures detectees :
-• '+[...new Set(joins)].join('
-• '):'')
-      +'
-
-(Analyse locale — pour des explications detaillees, activez Claude API ou Ollama local)';
-
-  return {
-    tables: scored.map(t=>t.Title),
-    explication: expl,
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).map(c=>({
-      table:t.Title,colonne:c.ColumnName,type:c.DataType,cle:c.KeyType||'',
-      description:c.Description||'',
-      utilisation:c.KeyType==='PK'?'Cle primaire — jointure':c.KeyType==='FK'?'Cle etrangere — jointure':'Valeur a agreger ou filtrer'
-    }))),
-    liens:(scored.map(t=>t.Sharepoint).filter(Boolean))
-  };
-}
-
-async function callLLM(q) {
-  const model = document.getElementById('rag-model').value;
-  const sys = 'Tu es un expert data pour un organisme de securite sociale.
-Catalogue:
-'+buildContext()+'
-
-Reponds UNIQUEMENT en JSON:
-{"tables":["NomTable"],"explication":"...","colonnes":[{"table":"","colonne":"","type":"","cle":"","description":"","utilisation":""}],"liens":["url"]}';
-  if (model==='claude') {
-    const key = document.getElementById('rag-key').value.trim();
-    if (!key) throw new Error('Cle API Claude requise');
-    const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:sys,messages:[{role:'user',content:q}]})});
-    const d = await r.json();
-    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-  } else {
-    const url = document.getElementById('rag-ollama-url').value||'http://localhost:11434';
-    const r = await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'mistral',stream:false,format:'json',prompt:sys+'
-
-Question: '+q})});
-    const d = await r.json();
-    return JSON.parse(d.response||'{}');
-  }
-}
-
-async function runRAG() {
-  const q = document.getElementById('rag-question').value.trim();
-  if (!q) return;
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'block';
-  document.getElementById('rag-status').textContent = '';
-  try {
-    const model = document.getElementById('rag-model').value;
-    let result;
-    if (model==='local') { result = localRAG(q); }
-    else { try { result = await callLLM(q); } catch(e) { result = localRAG(q); document.getElementById('rag-status').textContent = '⚠ Analyse locale (LLM indisponible : '+e.message+')'; } }
-    _ragResult = {question:q,...result};
-    renderRAGResult(result);
-  } catch(e) { document.getElementById('rag-loader').style.display='none'; document.getElementById('rag-status').textContent='❌ '+e.message; }
-}
-
-function renderRAGResult(r) {
-  document.getElementById('rag-loader').style.display='none';
-  document.getElementById('rag-result').style.display='block';
-  document.getElementById('rag-tables').innerHTML=(r.tables||[]).map(name=>{
-    const t=STATE.tables.find(t=>t.Title===name);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const sp=t&&t.Sharepoint?'onclick="window.open(''+t.Sharepoint+'','_blank')" style="cursor:pointer"':'';
-    return '<span '+sp+' style="display:inline-flex;align-items:center;gap:5px;background:'+col+'18;border:0.5px solid '+col+';border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:500;color:'+col+'"><span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'+name+'</span>';
-  }).join('');
-  document.getElementById('rag-explain').innerHTML=(r.explication||'').replace(/
-/g,'<br>');
-  document.getElementById('rag-cols-head').innerHTML='<tr>'+['Table','Colonne','Type','Cle','Description','Utilisation'].map(h=>'<th style="background:var(--bg3);padding:5px 8px;text-align:left;font-size:10px;font-weight:500;color:var(--text3);border:0.5px solid var(--border);white-space:nowrap">'+h+'</th>').join('')+'</tr>';
-  document.getElementById('rag-cols-body').innerHTML=(r.colonnes||[]).map((c,i)=>{
-    const t=STATE.tables.find(t=>t.Title===c.table);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const bg=i%2===0?'var(--bg)':'var(--bg2)';
-    const kb=c.cle?'<span style="background:var(--purple-light);color:var(--purple);padding:1px 5px;border-radius:3px;font-size:9px;font-family:monospace">'+c.cle+'</span>':'';
-    return '<tr style="background:'+bg+'"><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;font-weight:500;color:'+col+'">'+c.table+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-family:monospace;font-size:10px;color:var(--purple)">'+c.colonne+'</td><td style="padding:5px 8px;border:0.5px solid var(--border)"><span style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:10px">'+c.type+'</span></td><td style="padding:5px 8px;border:0.5px solid var(--border)">'+kb+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.description||'—')+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.utilisation||'—')+'</td></tr>';
-  }).join('');
-}
-
-function exportRAGCSV() {
-  if (!_ragResult) return;
-  const r = _ragResult;
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE — ASSISTANT RAG
-';
-  csv += 'Question,"'+r.question+'"
-
-TABLES IDENTIFIEES
-Table,Domaine,Fiabilite,Lien SharePoint
-';
-  (r.tables||[]).forEach(n=>{const t=STATE.tables.find(t=>t.Title===n);if(t)csv+='"'+t.Title+'","'+t.Domain+'","'+t.Reliability+'","'+(t.Sharepoint||'')+'"
-';});
-  csv += '
-ANALYSE,"'+(r.explication||'').replace(/"/g,"''").replace(/
-/g,' )+'"
-';
-  csv += '
-COLONNES
-Table,Colonne,Type,Cle,Description,Utilisation
-';
-  (r.colonnes||[]).forEach(c=>{csv+='"'+c.table+'","'+c.colonne+'","'+c.type+'","'+(c.cle||'')+'","'+(c.description||'').replace(/"/g,"''")+'","'+(c.utilisation||'').replace(/"/g,"''")+'")
-';});
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RAG_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-}
-
-
-window.onload = async function() {
-  await init();
-  initRAGChat();
-};
+window.onload = init;
 </script>
 </body>
 </html>
