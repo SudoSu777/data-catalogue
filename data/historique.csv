@@ -1,27 +1,27 @@
-﻿IdTable,DateModification,Note
-1,2024-06-01,Ajout colonne NB_ACTES pour le suivi des actes medicaux
-1,2024-03-15,Migration vers le nouveau schema v2
-1,2023-11-20,Creation initiale de la table
-2,2024-05-20,Ajout champ CATEGORIE (Actif/Retraite/Ayant-droit)
-2,2024-01-10,Nettoyage des doublons de matricules
-3,2024-05-30,Livraison initiale — en cours de validation comptable
-3,2024-04-01,Premiere extraction depuis systeme recouvrement
-4,2024-01-01,Extension de la table jusqu'en 2030
-5,2024-05-01,Integration des cas en contentieux
-6,2024-02-01,Import manuel depuis le registre employeurs
-1,2026-09-22,"Refonte : 4 branches CNPS (PF/ATMP/RETRAITE/AM), FCFA, source SECU (DSI) ; BRANCHE en FK vers DIM_BRANCHE"
-2,2026-09-22,Remplacement du NIR par le matricule CNPS
-3,2026-09-22,Renommage PRESTATIONS_PAYEE -> COTISATIONS_PERCUES ; FK EMPLOYEUR_ID -> EMPNUM ; ajout FK BRANCHE ; source e-interface ; Certifiee ; lien SharePoint Cotisations
-4,2026-09-22,Refonte modele : PK EMPLOYEUR_ID -> PK EMPNUM (cle metier CNPS) ; suppression EMPLOYEUR_ID ; AGCODE FK vers DIM_AGENCE
-5,2026-09-22,Correction encodage domaine (Immatriculation) ; FCFA ; FK EMPLOYEUR_ID -> EMPNUM
-6,2026-09-22,Renommage AGG_PRESTATIONS_HOMMES -> AGG_PRESTATIONS_SOMMES ; BRANCHE en FK vers DIM_BRANCHE ; lien SharePoint Prestations
-7,2026-09-22,Creation : DEBITS RECUS 2025 anterieur cotisations autres ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-8,2026-09-22,Creation : DEBITS RECUS 2025 anterieur cotisation principale ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-9,2026-09-22,Creation : DEBITS RECUS 2025 en cours cotisations autres ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-10,2026-09-22,Creation : DEBITS RECUS 2025 en cours cotisation principale ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-11,2026-09-22,Creation : MAJORATIONS DE RETARD 2025 anterieur ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-12,2026-09-22,Creation : MAJORATIONS DE RETARD 2025 en cours ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
-13,2026-09-22,Creation : PRESTATIONS_DSA (rapprochement 2025 avec DCG) ; Certifiee ; SharePoint Prestations ; FK BRANCHE et DATE_ID
-14,2026-09-22,Creation : DIM_AGENCE — referentiel des agences CNPS (PK AGCODE)
-15,2026-09-22,Creation : DIM_DATE — referentiel calendaire (PK DATE_ID au format YYYYMMDD)
-16,2026-09-22,Creation : DIM_BRANCHE — referentiel des 4 branches CNPS (PK BRANCHE)
+IdTable,DateModification,Note
+1,6/1/2024,Ajout colonne NB_ACTES pour le suivi des actes medicaux
+1,3/15/2024,Migration vers le nouveau schema v2
+1,11/20/2023,Creation initiale de la table
+2,5/20/2024,Ajout champ CATEGORIE (Actif/Retraite/Ayant-droit)
+2,1/10/2024,Nettoyage des doublons de matricules
+3,5/30/2024,Livraison initiale — en cours de validation comptable
+3,4/1/2024,Premiere extraction depuis systeme recouvrement
+4,1/1/2024,Extension de la table jusqu'en 2030
+5,5/1/2024,Integration des cas en contentieux
+6,2/1/2024,Import manuel depuis le registre employeurs
+1,9/22/2026,"Refonte : 4 branches CNPS (PF/ATMP/RETRAITE/AM), FCFA, source SECU (DSI) ; BRANCHE en FK vers DIM_BRANCHE"
+2,9/22/2026,Remplacement du NIR par le matricule CNPS
+3,9/22/2026,Renommage PRESTATIONS_PAYEE -> COTISATIONS_PERCUES ; FK EMPLOYEUR_ID -> EMPNUM ; ajout FK BRANCHE ; source e-interface ; Certifiee ; lien SharePoint Cotisations
+4,9/22/2026,Refonte modele : PK EMPLOYEUR_ID -> PK EMPNUM (cle metier CNPS) ; suppression EMPLOYEUR_ID ; AGCODE FK vers DIM_AGENCE
+5,9/22/2026,Correction encodage domaine (Immatriculation) ; FCFA ; FK EMPLOYEUR_ID -> EMPNUM
+6,9/22/2026,Renommage AGG_PRESTATIONS_HOMMES -> AGG_PRESTATIONS_SOMMES ; BRANCHE en FK vers DIM_BRANCHE ; lien SharePoint Prestations
+7,9/22/2026,Creation : DEBITS RECUS 2025 anterieur cotisations autres ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+8,9/22/2026,Creation : DEBITS RECUS 2025 anterieur cotisation principale ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+9,9/22/2026,Creation : DEBITS RECUS 2025 en cours cotisations autres ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+10,9/22/2026,Creation : DEBITS RECUS 2025 en cours cotisation principale ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+11,9/22/2026,Creation : MAJORATIONS DE RETARD 2025 anterieur ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+12,9/22/2026,Creation : MAJORATIONS DE RETARD 2025 en cours ; Certifiee ; SharePoint Cotisations ; FK EMPNUM et AGCODE
+13,9/22/2026,Creation : PRESTATIONS_DSA (rapprochement 2025 avec DCG) ; Certifiee ; SharePoint Prestations ; FK BRANCHE et DATE_ID
+14,9/22/2026,Creation : DIM_AGENCE — referentiel des agences CNPS (PK AGCODE)
+15,9/22/2026,Creation : DIM_DATE — referentiel calendaire (PK DATE_ID au format YYYYMMDD)
+16,9/22/2026,Creation : DIM_BRANCHE — referentiel des 4 branches CNPS (PK BRANCHE)
