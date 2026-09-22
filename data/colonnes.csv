@@ -1,11 +1,22 @@
-IdTable,NomColonne,TypeDonnee,TypeCle,Description
-1,ID_PRESTATION,INT,PK,Identifiant unique de la prestation
-1,DATE_ID,INT,FK,Reference vers DIM_DATE (Id 15) — format YYYYMMDD
-1,ASSURE_ID,INT,FK,Reference vers DIM_ASSURE (Id 2)
-1,BRANCHE,VARCHAR,FK,"Reference vers DIM_BRANCHE (Id 16) : PF (601), ATMP (602), RETRAITE (603), AM (604)"
-1,MONTANT_VERSE,DECIMAL,,Montant verse en FCFA
-1,DUREE_JOURS,INT,,Duree de la prestation en jours calendaires
-1,NB_ACTES,INT,,Nombre d'actes couverts
+﻿IdTable,NomColonne,TypeDonnee,TypeCle,Description
+1,AG,VARCHAR,FK,Code agence — correspond a AGCODE de DIM_AGENCE
+1,AGENCE,VARCHAR,,Libelle de l agence
+1,ASSURE,VARCHAR,FK,Numero assure — correspond a ASSURE_ID de DIM_ASSURE
+1,BENEFICIAIRE,VARCHAR,,Numero du beneficiaire de la prestation
+1,TYPE_BENEFICIAIRE,VARCHAR,,"Type de beneficiaire (assure, conjoint, enfant...)"
+1,F_NOM_PRENOM,NVARCHAR,,"Nom et prenom concatenes (assure, beneficiaire, type)"
+1,CODE_SOUS_REGIME,VARCHAR,,Code du sous-regime de prestation
+1,PERIODE_EMISE,VARCHAR,,Periode d emission (AAAAMM)
+1,AGENCE_EMISSION,VARCHAR,,Agence ayant emis la prestation
+1,NUMERO_DORDRE,VARCHAR,,Numero d ordre de l emission
+1,DATE_EMISSION,DATE,,Date d emission de la prestation
+1,MONTANT_BRUT,DECIMAL,,Montant brut emis en FCFA
+1,IGR,DECIMAL,,Impot general sur le revenu retenu en FCFA
+1,CN,DECIMAL,,Contribution nationale retenue en FCFA
+1,IS,DECIMAL,,Impot sur salaire retenu en FCFA
+1,CNR,DECIMAL,,Contribution nationale de retraite retenue en FCFA
+1,RETENUES,DECIMAL,,Total des retenues en FCFA
+1,NET_A_PAYER,DECIMAL,,Montant net a payer au beneficiaire en FCFA
 2,ASSURE_ID,INT,PK,"Identifiant unique de l'assure — referencee par les tables 1, 3, 5"
 2,MATRICULE,VARCHAR,,Matricule CNPS de l'assure
 2,NOM,NVARCHAR,,Nom de famille
@@ -129,15 +140,24 @@ IdTable,NomColonne,TypeDonnee,TypeCle,Description
 12,ATMP,DECIMAL,,Majoration Accidents Travail en FCFA
 12,RETRAITE,DECIMAL,,Majoration Retraite en FCFA
 12,AM,DECIMAL,,Majoration Assurance Maladie en FCFA
-13,ID_LIGNE,INT,PK,Identifiant unique de la ligne de prestation
-13,EXERCICE,INT,,Exercice comptable (annee)
-13,BRANCHE,VARCHAR,FK,Reference vers DIM_BRANCHE (Id 16) : PF (601) / ATMP (602) / RETRAITE_CONSO (603) / AM (604)
-13,COMPTE,VARCHAR,,"Compte comptable (601, 602, 603, 604)"
-13,PERIMETRE,VARCHAR,,NATIONAL ou IPRAO (retraite uniquement)
-13,MONTANT_FCFA,DECIMAL,,Montant de la prestation en FCFA
-13,SOURCE_SYSTEME,VARCHAR,,SECU ou e-interface
-13,TYPE_LIGNE,VARCHAR,,COURANT / MANUEL / ESTIMATION_APEX / HORS_SECU
-13,DATE_ID,INT,FK,Reference vers DIM_DATE (Id 15)
+13,AG,VARCHAR,FK,Code agence — correspond a AGCODE de DIM_AGENCE
+13,AGENCE,VARCHAR,,Libelle de l agence
+13,ASSURE,VARCHAR,FK,Numero assure — correspond a ASSURE_ID de DIM_ASSURE
+13,BENEFICIAIRE,VARCHAR,,Numero du beneficiaire de la prestation
+13,TYPE_BENEFICIAIRE,VARCHAR,,"Type de beneficiaire (assure, conjoint, enfant...)"
+13,F_NOM_PRENOM,NVARCHAR,,"Nom et prenom concatenes (assure, beneficiaire, type)"
+13,CODE_SOUS_REGIME,VARCHAR,,Code du sous-regime de prestation
+13,PERIODE_EMISE,VARCHAR,,Periode d emission (AAAAMM)
+13,AGENCE_EMISSION,VARCHAR,,Agence ayant emis la prestation
+13,NUMERO_DORDRE,VARCHAR,,Numero d ordre de l emission
+13,DATE_EMISSION,DATE,,Date d emission de la prestation
+13,MONTANT_BRUT,DECIMAL,,Montant brut emis en FCFA
+13,IGR,DECIMAL,,Impot general sur le revenu retenu en FCFA
+13,CN,DECIMAL,,Contribution nationale retenue en FCFA
+13,IS,DECIMAL,,Impot sur salaire retenu en FCFA
+13,CNR,DECIMAL,,Contribution nationale de retraite retenue en FCFA
+13,RETENUES,DECIMAL,,Total des retenues en FCFA
+13,NET_A_PAYER,DECIMAL,,Montant net a payer au beneficiaire en FCFA
 14,AGCODE,VARCHAR,PK,"Code agence CNPS — cle metier ; referencee par les tables 4, 7 a 12"
 14,AGLIBEL,VARCHAR,,Libelle de l'agence
 14,REGION,VARCHAR,,Region administrative de rattachement
