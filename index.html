@@ -245,7 +245,7 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
 
 /* ── RAG CHAT ── */
 #rag-chat-panel {
-  position: fixed; right: 0; top: 0; bottom: 0; width: 420px;
+  position: fixed; right: 0; top: 0; bottom: 0; width: min(520px, 100vw);
   background: var(--bg); border-left: 0.5px solid var(--border2);
   display: flex; flex-direction: column; z-index: 50;
   transform: translateX(100%); transition: transform .25s ease;
@@ -960,9 +960,7 @@ function showStatusOk(msg) {
 //  CHARGEMENT CSV
 // ══════════════════════════════════════════════════════════════
 function parseCSV(text) {
-  const lines = text.trim().split(/
-?
-/);
+  const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
   return lines.slice(1).filter(l => l.trim()).map(line => {
@@ -1058,6 +1056,38 @@ function buildLinks() {
     }
   });
   return links;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  COMPTEUR D'USAGE PERSISTANT — 1 consultation / table / jour / navigateur
+// ══════════════════════════════════════════════════════════════
+const USAGE_KEY = 'dc_usage_counts';
+const USAGE_DATE_KEY = 'dc_usage_dates';
+
+function loadPersistedUsage() {
+  try {
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    STATE.tables.forEach(t => {
+      if (counts[t.id] !== undefined) t.Usage = Math.max(t.Usage || 0, counts[t.id]);
+    });
+  } catch (e) {}
+}
+
+function incrementUsage(node) {
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const dates = JSON.parse(localStorage.getItem(USAGE_DATE_KEY) || '{}');
+    const counts = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    if (dates[node.id] === today) return;
+    node.Usage = (node.Usage || 0) + 1;
+    const t = STATE.tables.find(t => t.id === node.id);
+    if (t) t.Usage = node.Usage;
+    dates[node.id] = today;
+    counts[node.id] = node.Usage;
+    localStorage.setItem(USAGE_DATE_KEY, JSON.stringify(dates));
+    localStorage.setItem(USAGE_KEY, JSON.stringify(counts));
+    if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, node.id, { NombreUsages: node.Usage }).catch(() => {});
+  } catch (e) {}
 }
 
 function initGraph() {
@@ -1176,7 +1206,7 @@ function drawGraph(W, H) {
 
 function buildLegend() {
   const leg = document.getElementById('legend');
-  const domains = [...new Set(STATE.tables.map(t => t.Domaine))];
+  const domains = [...new Set(STATE.tables.map(t => t.Domain))];
   leg.innerHTML = domains.map(d => `<div class="leg-row"><span class="leg-dot" style="background:${DOMAIN_COLORS[d]||'#888'}"></span>${d}</div>`).join('');
 }
 
@@ -1208,9 +1238,7 @@ function setupCanvasEvents(canvas, W, H) {
     const [mx, my] = toWorld(e, canvas);
     const n = hitTest(mx, my);
     if (n && visible(n)) {
-      n.Usage = Math.min((n.Usage||0)+1, 99);
-      STATE.tables.find(t=>t.id===n.id).Usage = n.Usage;
-      if (STATE.sharepointMode) spPatch(CONFIG.LIST_TABLES, n.id, { NombreUsages: n.Usage }).catch(()=>{});
+      incrementUsage(n);
       STATE.selectedId = n.id;
       renderPanel(n);
     }
@@ -1345,11 +1373,11 @@ function renderPanel(node) {
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         Exporter JSON
       </button>
-      ${STATE.isAdmin ? `
-        <button class="btn" onclick="ragAskAboutTable('${node.Title}')">
+      <button class="btn" onclick="ragAskAboutTable('${node.Title}')">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         Assistant
       </button>
+      ${STATE.isAdmin ? `
       <button class="btn" onclick="openEditModal('${node.id}')">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           Modifier
@@ -1364,7 +1392,7 @@ function renderPanel(node) {
 
 function selectTable(id) {
   const n = gNodes.find(n=>n.id===id);
-  if (n) { n.Usage = Math.min((n.Usage||0)+1,99); STATE.selectedId=id; renderPanel(n); }
+  if (n) { incrementUsage(n); STATE.selectedId=id; renderPanel(n); }
 }
 
 function exportTable(id) {
@@ -1601,6 +1629,7 @@ function loadAPIKey(prov) {
 function toggleRAGChat() {
   ragState.open = !ragState.open;
   document.getElementById('rag-chat-panel').classList.toggle('open', ragState.open);
+  document.getElementById('rag-chat-toggle').style.display = ragState.open ? 'none' : 'flex';
   if (ragState.open) { ragRenderHist(); ragInitEmpty(); }
 }
 
@@ -1677,7 +1706,7 @@ function ragInitEmpty() {
       'Montant des cotisations ATMP 2024 par branche',
       'Employeurs avec majorations de retard en cours',
       'Prestations retraite consolidées (national + IPRAO)',
-      'Salariés actifs par secteur d'activité'
+      "Salariés actifs par secteur d'activité"
     ];
     if (qq) qq.innerHTML = questions.map(q =>
       `<button class="rag-quick-q-btn" onclick="ragQuickQ(this)">${escH(q)}</button>`
@@ -1734,7 +1763,7 @@ function renderBotMsg(m) {
   const colsHTML = cols.length ? `
     <div style="margin:8px 0">
       <div class="sec-lbl" style="margin-bottom:4px">Colonnes clés</div>
-      <table style="width:100%;border-collapse:collapse;font-size:10.5px">
+      <div style="overflow-x:auto"><table style="width:100%;min-width:420px;border-collapse:collapse;font-size:10.5px">
         <thead><tr>
           ${['Table','Colonne','Type','Clé','Rôle'].map(h =>
             `<th style="padding:3px 6px;text-align:left;border-bottom:0.5px solid var(--border);color:var(--text3);font-weight:500;font-size:9.5px;text-transform:uppercase">${h}</th>`
@@ -1753,14 +1782,13 @@ function renderBotMsg(m) {
             <td style="padding:3px 6px;border-bottom:0.5px solid var(--border);color:var(--text2);font-size:10px">${escH(c.utilisation||'—')}</td>
           </tr>`;
         }).join('')}</tbody>
-      </table>
+      </table></div>
     </div>` : '';
 
   return `<div class="rag-msg-bot"><div class="rag-msg-bot-inner">
     ${tables.length ? `<div class="sec-lbl" style="margin-bottom:4px">${tables.length} table(s) identifiée(s)</div>
     <div class="rag-tables-chips">${chips}</div>` : ''}
-    <div style="color:var(--text2);font-size:12px;line-height:1.6;margin:6px 0">${(d.explication||m.content||'').replace(/
-/g,'<br>')}</div>
+    <div style="color:var(--text2);font-size:12px;line-height:1.6;margin:6px 0">${(d.explication||m.content||'').replace(/\n/g,'<br>')}</div>
     ${joinsHTML}${colsHTML}
     <div class="rag-actions">
       ${tables.length ? `<button class="rag-action-btn primary" onclick="ragExportCSV(${JSON.stringify(d).replace(/"/g,'&quot;')})">
@@ -1794,40 +1822,33 @@ function ragHighlightTables(tables) {
 
 // ── LLM CALLS ──
 function ragBuildContext(question) {
+  const NL = String.fromCharCode(10);
   const ctx = STATE.tables.map(t => {
     const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilité: ${t.Reliability} | Source: ${t.Source||''}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => `${c.ColumnName}(${c.DataType}${c.KeyType?','+c.KeyType:''}): ${c.Description||''}`).join(' | ')}`;
-  }).join('
+    return 'TABLE: ' + t.Title + ' | Domaine: ' + t.Domain + ' | Fiabilite: ' + t.Reliability + ' | Source: ' + (t.Source || '') + NL +
+      'Description: ' + (t.DescriptionLong || t.Description || '') + NL +
+      'Colonnes: ' + cols.map(c => c.ColumnName + '(' + c.DataType + (c.KeyType ? ',' + c.KeyType : '') + '): ' + (c.Description || '')).join(' | ');
+  }).join(NL + NL);
 
-');
-
-  return `Tu es un expert data de la CNPS (Caisse Nationale de Prévoyance Sociale, Côte d'Ivoire).
-Tu analyses le catalogue de données du Département Statistique et Actuariat (DSA).
-
-CATALOGUE COMPLET:
-${ctx}
-
-RÈGLES DE RÉPONSE:
-- Réponds UNIQUEMENT en JSON valide, sans markdown
-- Identifie les tables pertinentes avec leurs noms EXACTS du catalogue
-- Explique les jointures en français clair et concis
-- Pour les secteurs d'activité, CODE_SEC 'A' = agriculture
-- Les montants sont en FCFA
-- Les 4 branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604)
-
-FORMAT JSON ATTENDU:
-{
-  "tables": ["NomExact1", "NomExact2"],
-  "explication": "Explication courte en français",
-  "jointures": ["TABLE_A.COL = TABLE_B.COL", "Filtre: CONDITION"],
-  "colonnes": [
-    {"table": "NomTable", "colonne": "NOM_COL", "type": "TYPE", "cle": "PK/FK/", "description": "...", "utilisation": "Pourquoi cette colonne"}
-  ],
-  "suggestions": ["Question de relance 1", "Question de relance 2", "Question de relance 3"]
-}`;
+  return [
+    "Tu es un expert data de la CNPS (Caisse Nationale de Prevoyance Sociale, Cote d'Ivoire).",
+    "Tu analyses le catalogue de donnees du Departement Statistique et Actuariat (DSA).",
+    "",
+    "CATALOGUE COMPLET:",
+    ctx,
+    "",
+    "REGLES:",
+    "- Reponds UNIQUEMENT en JSON valide, sans markdown.",
+    "- Utilise les noms de tables EXACTS du catalogue.",
+    "- Explique en francais clair quelles bases croiser et pourquoi.",
+    "- Si une variable demandee (ex: sexe, commune) n'existe dans aucune table, dis-le explicitement et propose la table la plus proche ou une demande d'enrichissement a la DSI.",
+    "- Montants en FCFA. Branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604).",
+    "",
+    "FORMAT JSON:",
+    '{"tables":["NomExact"],"explication":"...","jointures":["TABLE_A.COL = TABLE_B.COL","Filtre: ..."],"colonnes":[{"table":"","colonne":"","type":"","cle":"","description":"","utilisation":""}],"suggestions":["relance 1","relance 2","relance 3"]}'
+  ].join(NL);
 }
+
 
 async function callRAGLLM(question, history) {
   const prov = document.getElementById('rag-provider').value;
@@ -1846,7 +1867,7 @@ async function callRAGLLM(question, history) {
     if (!key) throw new Error('Clé API Claude manquante');
     const r = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01' },
+      headers: { 'Content-Type':'application/json', 'x-api-key': key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:2000, system: sysPrompt, messages: msgs })
     });
     const d = await r.json();
@@ -1893,63 +1914,72 @@ async function callRAGLLM(question, history) {
 
 // ── Analyse locale (sans LLM) ──
 function ragLocalAnalysis(question) {
-  const ql = question.toLowerCase();
-  const words = ql.split(/\s+/).filter(w=>w.length>2);
+  const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const ql = norm(question);
+  const STOP = new Set(['les','des','par','pour','avec','dans','une','sur','que','qui','veux','voudrais','souhaite','avoir','liste','nombre','total','montant','donne','moi','leur','leurs','entre','tous','toutes','quelles','quels','comment','table','tables']);
+  const words = ql.split(/[^a-z0-9_]+/).filter(w => w.length > 3 && !STOP.has(w));
 
-  const domainKW = {
-    'prestation': ['Prestation'], 'retraite': ['Prestation'],
-    'cotisation': ['Cotisation'], 'debit': ['Cotisation'], 'majoration': ['Cotisation'],
-    'employe': ['Recouvrement','Immatriculation'], 'employeur': ['Recouvrement'],
-    'salari': ['Immatriculation'], 'salarié': ['Immatriculation'],
-    'agence': ['Referentiel'], 'branche': ['Referentiel'], 'date': ['Referentiel']
-  };
+  // Concepts metier -> tables cibles + colonnes attendues
+  const CONCEPTS = [
+    { kw: ['femme','homme','sexe','genre'], attr: 'SEXE', label: 'le sexe', tables: ['DIM_ASSURE','SALARIES_EN_ACTIVITE'] },
+    { kw: ['commune'], attr: 'COMMUNE', label: 'la commune', tables: ['EMPLOYEURS_ACTIFS'] },
+    { kw: ['localite','ville','village'], attr: 'LOCALITE', label: 'la localite', tables: ['EMPLOYEURS_ACTIFS'] },
+    { kw: ['agricol','agriculture','secteur','activite'], attr: 'CODE_SEC', label: "le secteur d'activite", tables: ['EMPLOYEURS_ACTIFS'] },
+    { kw: ['agence','region'], attr: 'AGCODE', label: "l'agence", tables: ['DIM_AGENCE','EMPLOYEURS_ACTIFS'] },
+    { kw: ['salari','effectif','masse'], attr: 'SALAIRE_BRUT', label: 'les salaries', tables: ['SALARIES_EN_ACTIVITE'] },
+    { kw: ['employeur','entreprise'], attr: 'EMPNUM', label: 'les employeurs', tables: ['EMPLOYEURS_ACTIFS'] },
+    { kw: ['cotisation'], attr: 'MONTANT_PATRONAL', label: 'les cotisations', tables: ['COTISATIONS_PERCUES'] },
+    { kw: ['debit','impaye'], attr: 'COT_DEBIT', label: 'les debits', tables: ['DEBITS_RECUS_ENCOURS_PRINCIPAL','DEBITS_RECUS_ANTERIEUR_PRINCIPAL'] },
+    { kw: ['majoration','retard'], attr: 'DEBIT', label: 'les majorations', tables: ['MAJORATIONS_RETARD_ENCOURS','MAJORATIONS_RETARD_ANTERIEURE'] },
+    { kw: ['prestation','retraite','pension'], attr: 'MONTANT_VERSE', label: 'les prestations', tables: ['PRESTATIONS_EMISE','PRESTATIONS_DSA'] },
+    { kw: ['branche','atmp'], attr: 'BRANCHE', label: 'la branche', tables: ['DIM_BRANCHE'] },
+    { kw: ['annee','mois','trimestre','periode','2024','2025'], attr: 'DATE_ID', label: 'la periode', tables: ['DIM_DATE'] }
+  ];
+  const hit = CONCEPTS.filter(c => c.kw.some(k => ql.includes(k)));
+  const allCols = new Set(STATE.columns.map(c => c.ColumnName));
+  const missing = hit.filter(c => !allCols.has(c.attr));
 
-  const targetDomains = new Set();
-  Object.entries(domainKW).forEach(([kw,doms]) => {
-    if (words.some(w=>w.includes(kw))) doms.forEach(d=>targetDomains.add(d));
+  const score = {};
+  hit.forEach(c => c.tables.forEach(t => { score[t] = (score[t] || 0) + 10; }));
+  STATE.tables.forEach(t => {
+    const hay = norm(t.Title + ' ' + t.Description);
+    words.forEach(w => { if (hay.includes(w)) score[t.Title] = (score[t.Title] || 0) + 2; });
   });
+  let picked = Object.entries(score).filter(([n]) => STATE.tables.find(t => t.Title === n))
+    .sort((a, b) => b[1] - a[1]).map(([n]) => n).slice(0, 5);
 
-  const scored = STATE.tables.map(t => {
-    let s = targetDomains.has(t.Domain) ? 8 : 0;
-    const hay = (t.Title+' '+t.Description+' '+
-      STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')
-    ).toLowerCase();
-    words.forEach(w => { if(hay.includes(w)) s+=2; });
-    if (ql.includes('femme') && t.id==='2') s+=10;
-    if (ql.includes('agence') && (t.Title.includes('AGENCE')||t.Title.includes('EMPLOYEUR'))) s+=8;
-    if (ql.includes('agricol') && t.Title.includes('EMPLOY')) s+=8;
-    if (ql.includes('retraite') && (t.Title.includes('RETRAITE')||t.Title.includes('PRESTA'))) s+=6;
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
+  // Ajouter les tables pivot necessaires pour relier les tables retenues
+  const byTitle = n => STATE.tables.find(t => t.Title === n);
   const joins = [];
-  scored.forEach(ta => {
-    STATE.columns.filter(c=>c.TableId===ta.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==ta.id);
-      if(pk){ const tgt=STATE.tables.find(t=>t.id===pk.TableId);
-        if(tgt&&scored.find(s=>s.id===tgt.id)) joins.push(`${ta.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);
-      }
+  const ids = () => picked.map(n => byTitle(n).id);
+  picked.slice().forEach(n => {
+    const t = byTitle(n);
+    STATE.columns.filter(c => c.TableId === t.id && c.KeyType === 'FK').forEach(fk => {
+      const pk = STATE.columns.find(c => c.ColumnName === fk.ColumnName && c.KeyType === 'PK' && c.TableId !== t.id);
+      if (!pk) return;
+      const tgt = STATE.tables.find(x => x.id === pk.TableId);
+      if (tgt && ids().includes(tgt.id)) joins.push(t.Title + '.' + fk.ColumnName + ' = ' + tgt.Title + '.' + pk.ColumnName);
     });
   });
 
-  const suggestions = [
-    'Ventiler par branche (PF/ATMP/RETRAITE/AM)',
-    'Filtrer par période spécifique',
-    'Ajouter la dimension agence'
-  ];
+  const tSet = picked.map(byTitle);
+  const cols = tSet.flatMap(t => STATE.columns.filter(c => c.TableId === t.id &&
+      (c.KeyType || hit.some(h => h.attr === c.ColumnName) || words.some(w => norm(c.ColumnName + ' ' + c.Description).includes(w))))
+    .map(c => ({ table: t.Title, colonne: c.ColumnName, type: c.DataType, cle: c.KeyType || '', description: c.Description || '',
+      utilisation: c.KeyType === 'PK' ? 'Cle primaire' : c.KeyType === 'FK' ? 'Cle de jointure' : 'Variable a filtrer ou agreger' })));
 
+  let expl = picked.length
+    ? picked.length + ' table(s) a croiser : ' + picked.join(', ') + '.'
+    : 'Aucune table correspondante. Reformulez avec des termes metier (cotisation, employeur, agence, prestation...).';
+  if (missing.length) {
+    expl += String.fromCharCode(10) + String.fromCharCode(10) + 'Attention : ' + missing.map(m => m.label + ' (' + m.attr + ')').join(', ') +
+      " n'existe dans aucune table du catalogue. Il faudra soit enrichir " + missing[0].tables[0] +
+      ' via une demande a la DSI, soit utiliser une variable approchante.';
+  }
   return {
-    tables: scored.map(t=>t.Title),
-    explication: scored.length
-      ? `${scored.length} table(s) identifiée(s) par analyse locale du catalogue. Pour une explication détaillée des jointures, activez un modèle LLM.`
-      : 'Aucune table correspondante trouvée. Reformulez votre question.',
-    jointures: [...new Set(joins)],
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).slice(0,4).map(c=>({
-      table:t.Title, colonne:c.ColumnName, type:c.DataType, cle:c.KeyType||'',
-      description:c.Description||'', utilisation:c.KeyType==='PK'?'Clé primaire':c.KeyType==='FK'?'Clé de jointure':'Valeur à analyser'
-    }))),
-    suggestions,
-    note: 'Analyse locale — activez Claude/OpenAI/Mistral pour une analyse sémantique'
+    tables: picked, explication: expl, jointures: [...new Set(joins)], colonnes: cols,
+    suggestions: ['Ventiler par branche (PF, ATMP, RETRAITE, AM)', 'Ajouter la dimension agence', 'Limiter a l\u2019exercice 2025'],
+    note: 'Analyse locale par mots-cles. Choisissez un fournisseur LLM pour une analyse plus fine.'
   };
 }
 
@@ -2019,37 +2049,33 @@ function ragSuggClick(btn) {
 }
 
 function ragExportCSV(data) {
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE CNPS — ASSISTANT RAG
-';
-  csv += 'TABLES IDENTIFIÉES
-Table,Domaine,Fiabilité,Lien SharePoint
-';
-  (data.tables||[]).forEach(n=>{
-    const t=STATE.tables.find(t=>t.Title===n);
-    if(t) csv+=`"${t.Title}","${t.Domain}","${t.Reliability}","${t.Sharepoint||''}"
-`;
+  const NL = String.fromCharCode(10);
+  const q = s => '"' + String(s == null ? '' : s).replace(/"/g, '""') + '"';
+  const rows = [];
+  rows.push('sep=;');
+  rows.push('RAPPORT DATA CATALOGUE CNPS - ASSISTANT RAG');
+  rows.push('');
+  rows.push('TABLES IDENTIFIEES');
+  rows.push(['Table', 'Domaine', 'Fiabilite', 'Lien SharePoint'].join(';'));
+  (data.tables || []).forEach(n => {
+    const t = STATE.tables.find(t => t.Title === n);
+    if (t) rows.push([q(t.Title), q(t.Domain), q(t.Reliability), q(t.Sharepoint)].join(';'));
   });
-  csv += '
-EXPLICATION
-"'+(data.explication||'').replace(/"/g,"''")+'"';
-  csv += '
-
-JOINTURES
-';
-  (data.jointures||[]).forEach(j=>{ csv+=`"${j}"
-`; });
-  csv += '
-COLONNES
-Table,Colonne,Type,Clé,Description,Utilisation
-';
-  (data.colonnes||[]).forEach(c=>{
-    csv+=`"${c.table}","${c.colonne}","${c.type}","${c.cle||''}","${(c.description||'').replace(/"/g,"''")}","${(c.utilisation||'').replace(/"/g,"''")}")
-`;
-  });
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(b);
-  a.download='RAG_CNPS_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  rows.push('');
+  rows.push('EXPLICATION');
+  rows.push(q(data.explication));
+  rows.push('');
+  rows.push('JOINTURES');
+  (data.jointures || []).forEach(j => rows.push(q(j)));
+  rows.push('');
+  rows.push('COLONNES');
+  rows.push(['Table', 'Colonne', 'Type', 'Cle', 'Description', 'Utilisation'].join(';'));
+  (data.colonnes || []).forEach(c => rows.push([q(c.table), q(c.colonne), q(c.type), q(c.cle), q(c.description), q(c.utilisation)].join(';')));
+  const blob = new Blob(['\ufeff' + rows.join(NL)], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'RAG_CNPS_' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
 }
 
 // Init RAG au chargement
@@ -2072,172 +2098,6 @@ function ragAskAboutTable(tableName) {
 
 let _ragResult = null; // legacy compat
 function openRAG() { toggleRAGChat(); } // legacy compat
-
-
-document.addEventListener('change', e => {
-  if (e.target.id !== 'rag-model') return;
-  document.getElementById('rag-key').style.display = e.target.value === 'claude' ? 'block' : 'none';
-  document.getElementById('rag-ollama-url').style.display = e.target.value === 'ollama' ? 'block' : 'none';
-});
-
-function openRAG() {
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'none';
-  document.getElementById('rag-question').value = '';
-  document.getElementById('rag-status').textContent = '';
-  openModal('modal-rag');
-}
-
-function buildContext() {
-  return STATE.tables.map(t => {
-    const cols = STATE.columns.filter(c => c.TableId === t.id);
-    return `TABLE: ${t.Title} | Domaine: ${t.Domain} | Fiabilite: ${t.Reliability} | Lien: ${t.Sharepoint||'non renseigne'}
-Description: ${t.Description||''}
-Colonnes: ${cols.map(c => c.ColumnName+'('+c.DataType+(c.KeyType?','+c.KeyType:'')+'):'+( c.Description||'')).join(' | ')}`;
-  }).join('
-
-');
-}
-
-function localRAG(q) {
-  const ql = q.toLowerCase();
-  const domMap = {'salarie':['Salaries'],'employe':['Salaries'],'employeur':['Recouvrement'],'cotisation':['Cotisations'],'prestation':['Prestation'],'recouvrement':['Recouvrement'],'assure':['Prestation','Cotisations']};
-  const domSet = new Set();
-  // Map generic keywords to CONFIG domains
-  CONFIG.DOMAINS.forEach(d => { const dl = d.toLowerCase(); if (ql.includes(dl)) domSet.add(d); });
-  Object.entries(domMap).forEach(([kw,doms]) => { if(ql.includes(kw)) doms.forEach(d => { const found = CONFIG.DOMAINS.find(cd => cd.toLowerCase().includes(d.toLowerCase())); if(found) domSet.add(found); }); });
-  const words = ql.split(/\s+/).filter(w => w.length > 3);
-  const scored = STATE.tables.map(t => {
-    let s = domSet.has(t.Domain) ? 10 : 0;
-    const hay = (t.Title+' '+t.Description+' '+STATE.columns.filter(c=>c.TableId===t.id).map(c=>c.ColumnName+' '+(c.Description||'')).join(' ')).toLowerCase();
-    words.forEach(w => { if (hay.includes(w)) s += 2; });
-    return {...t, score:s};
-  }).filter(t=>t.score>0).sort((a,b)=>b.score-a.score).slice(0,5);
-
-  const joins = [];
-  scored.forEach(t => {
-    STATE.columns.filter(c=>c.TableId===t.id&&c.KeyType==='FK').forEach(ca => {
-      const pk = STATE.columns.find(cb=>cb.ColumnName===ca.ColumnName&&cb.KeyType==='PK'&&cb.TableId!==t.id);
-      if(pk){const tgt=STATE.tables.find(tt=>tt.id===pk.TableId); if(tgt&&scored.find(ss=>ss.id===tgt.id)) joins.push(`${t.Title}.${ca.ColumnName} → ${tgt.Title}.${pk.ColumnName}`);}
-    });
-  });
-
-  const expl = scored.length===0 ? 'Aucune table correspondante trouvee dans le catalogue.'
-    : scored.length+' table(s) identifiee(s) :
-• '+scored.map(t=>t.Title+' ('+t.Domain+')').join('
-• ')
-      +(joins.length?'
-
-Jointures detectees :
-• '+[...new Set(joins)].join('
-• '):'')
-      +'
-
-(Analyse locale — pour des explications detaillees, activez Claude API ou Ollama local)';
-
-  return {
-    tables: scored.map(t=>t.Title),
-    explication: expl,
-    colonnes: scored.flatMap(t=>STATE.columns.filter(c=>c.TableId===t.id).map(c=>({
-      table:t.Title,colonne:c.ColumnName,type:c.DataType,cle:c.KeyType||'',
-      description:c.Description||'',
-      utilisation:c.KeyType==='PK'?'Cle primaire — jointure':c.KeyType==='FK'?'Cle etrangere — jointure':'Valeur a agreger ou filtrer'
-    }))),
-    liens:(scored.map(t=>t.Sharepoint).filter(Boolean))
-  };
-}
-
-async function callLLM(q) {
-  const model = document.getElementById('rag-model').value;
-  const sys = 'Tu es un expert data pour un organisme de securite sociale.
-Catalogue:
-'+buildContext()+'
-
-Reponds UNIQUEMENT en JSON:
-{"tables":["NomTable"],"explication":"...","colonnes":[{"table":"","colonne":"","type":"","cle":"","description":"","utilisation":""}],"liens":["url"]}';
-  if (model==='claude') {
-    const key = document.getElementById('rag-key').value.trim();
-    if (!key) throw new Error('Cle API Claude requise');
-    const r = await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
-      headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-      body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:2000,system:sys,messages:[{role:'user',content:q}]})});
-    const d = await r.json();
-    return JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-  } else {
-    const url = document.getElementById('rag-ollama-url').value||'http://localhost:11434';
-    const r = await fetch(url+'/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({model:'mistral',stream:false,format:'json',prompt:sys+'
-
-Question: '+q})});
-    const d = await r.json();
-    return JSON.parse(d.response||'{}');
-  }
-}
-
-async function runRAG() {
-  const q = document.getElementById('rag-question').value.trim();
-  if (!q) return;
-  document.getElementById('rag-result').style.display = 'none';
-  document.getElementById('rag-loader').style.display = 'block';
-  document.getElementById('rag-status').textContent = '';
-  try {
-    const model = document.getElementById('rag-model').value;
-    let result;
-    if (model==='local') { result = localRAG(q); }
-    else { try { result = await callLLM(q); } catch(e) { result = localRAG(q); document.getElementById('rag-status').textContent = '⚠ Analyse locale (LLM indisponible : '+e.message+')'; } }
-    _ragResult = {question:q,...result};
-    renderRAGResult(result);
-  } catch(e) { document.getElementById('rag-loader').style.display='none'; document.getElementById('rag-status').textContent='❌ '+e.message; }
-}
-
-function renderRAGResult(r) {
-  document.getElementById('rag-loader').style.display='none';
-  document.getElementById('rag-result').style.display='block';
-  document.getElementById('rag-tables').innerHTML=(r.tables||[]).map(name=>{
-    const t=STATE.tables.find(t=>t.Title===name);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const sp=t&&t.Sharepoint?'onclick="window.open(''+t.Sharepoint+'','_blank')" style="cursor:pointer"':'';
-    return '<span '+sp+' style="display:inline-flex;align-items:center;gap:5px;background:'+col+'18;border:0.5px solid '+col+';border-radius:20px;padding:3px 10px;font-size:11.5px;font-weight:500;color:'+col+'"><span style="width:7px;height:7px;border-radius:50%;background:'+col+'"></span>'+name+'</span>';
-  }).join('');
-  document.getElementById('rag-explain').innerHTML=(r.explication||'').replace(/
-/g,'<br>');
-  document.getElementById('rag-cols-head').innerHTML='<tr>'+['Table','Colonne','Type','Cle','Description','Utilisation'].map(h=>'<th style="background:var(--bg3);padding:5px 8px;text-align:left;font-size:10px;font-weight:500;color:var(--text3);border:0.5px solid var(--border);white-space:nowrap">'+h+'</th>').join('')+'</tr>';
-  document.getElementById('rag-cols-body').innerHTML=(r.colonnes||[]).map((c,i)=>{
-    const t=STATE.tables.find(t=>t.Title===c.table);
-    const col=t?(DOMAIN_COLORS[t.Domain]||'#888'):'#888';
-    const bg=i%2===0?'var(--bg)':'var(--bg2)';
-    const kb=c.cle?'<span style="background:var(--purple-light);color:var(--purple);padding:1px 5px;border-radius:3px;font-size:9px;font-family:monospace">'+c.cle+'</span>':'';
-    return '<tr style="background:'+bg+'"><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;font-weight:500;color:'+col+'">'+c.table+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-family:monospace;font-size:10px;color:var(--purple)">'+c.colonne+'</td><td style="padding:5px 8px;border:0.5px solid var(--border)"><span style="background:var(--bg3);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:10px">'+c.type+'</span></td><td style="padding:5px 8px;border:0.5px solid var(--border)">'+kb+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.description||'—')+'</td><td style="padding:5px 8px;border:0.5px solid var(--border);font-size:10.5px;color:var(--text2)">'+(c.utilisation||'—')+'</td></tr>';
-  }).join('');
-}
-
-function exportRAGCSV() {
-  if (!_ragResult) return;
-  const r = _ragResult;
-  let csv = 'sep=,
-RAPPORT DATA CATALOGUE — ASSISTANT RAG
-';
-  csv += 'Question,"'+r.question+'"
-
-TABLES IDENTIFIEES
-Table,Domaine,Fiabilite,Lien SharePoint
-';
-  (r.tables||[]).forEach(n=>{const t=STATE.tables.find(t=>t.Title===n);if(t)csv+='"'+t.Title+'","'+t.Domain+'","'+t.Reliability+'","'+(t.Sharepoint||'')+'"
-';});
-  csv += '
-ANALYSE,"'+(r.explication||'').replace(/"/g,"''").replace(/
-/g,' )+'"
-';
-  csv += '
-COLONNES
-Table,Colonne,Type,Cle,Description,Utilisation
-';
-  (r.colonnes||[]).forEach(c=>{csv+='"'+c.table+'","'+c.colonne+'","'+c.type+'","'+(c.cle||'')+'","'+(c.description||'').replace(/"/g,"''")+'","'+(c.utilisation||'').replace(/"/g,"''")+'")
-';});
-  const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='RAG_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
-}
-
 
 window.onload = async function() {
   await init();
