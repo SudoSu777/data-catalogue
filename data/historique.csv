@@ -9,16 +9,16 @@ IdTable,DateModification,Note
 4,1/1/2024,Extension de la table jusqu'en 2030
 5,5/1/2024,Integration des cas en contentieux
 6,2/1/2024,Import manuel depuis le registre employeurs
-1,9/22/2026,"Refonte : passage aux 4 branches CNPS (PF/ATMP/RETRAITE/AM), montants en FCFA, source SECU (DSI)"
-2,9/22/2026,Remplacement du NIR par le matricule CNPS
-3,9/22/2026,Renommage PRESTATIONS_PAYEE -> COTISATIONS_PERCUES ; ajout colonne BRANCHE ; source e-interface
-4,9/22/2026,Remplacement SIRET -> EMPNUM ; ajout AGCODE (rattachement agence) ; correction domaine
+1,9/22/2026,"Refonte : passage aux 4 branches CNPS (PF/ATMP/RETRAITE/AM), montants en FCFA, source SECU (DSI) ; explicitation des liaisons"
+2,9/22/2026,Remplacement du NIR par le matricule CNPS ; explicitation des liaisons entrantes
+3,9/22/2026,Renommage PRESTATIONS_PAYEE -> COTISATIONS_PERCUES ; ajout colonne BRANCHE ; source e-interface ; passage a Certifiee ; lien SharePoint Cotisations
+4,9/22/2026,Remplacement SIRET -> EMPNUM (cle naturelle unique) ; ajout AGCODE ; correction domaine
 5,9/22/2026,Correction encodage domaine (Immatriculation) ; montants en FCFA
-6,9/22/2026,Renommage AGG_PRESTATIONS_HOMMES -> AGG_PRESTATIONS_SOMMES ; reference PRESTATIONS_EMISE
-7,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice anterieur — cotisations autres
-8,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice anterieur — cotisation principale
-9,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice en cours — cotisations autres
-10,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice en cours — cotisation principale
-11,9/22/2026,Creation : extraction MAJORATIONS DE RETARD 2025 — exercice anterieur
-12,9/22/2026,Creation : extraction MAJORATIONS DE RETARD 2025 — exercice en cours
-13,9/22/2026,Creation : base source PRESTATIONS DSA utilisee pour le rapprochement 2025 avec la DCG
+6,9/22/2026,Renommage AGG_PRESTATIONS_HOMMES -> AGG_PRESTATIONS_SOMMES ; reference PRESTATIONS_EMISE ; lien SharePoint Prestations
+7,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice anterieur — cotisations autres ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+8,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice anterieur — cotisation principale ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+9,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice en cours — cotisations autres ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+10,9/22/2026,Creation : extraction DEBITS RECUS 2025 exercice en cours — cotisation principale ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+11,9/22/2026,Creation : extraction MAJORATIONS DE RETARD 2025 exercice anterieur ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+12,9/22/2026,Creation : extraction MAJORATIONS DE RETARD 2025 exercice en cours ; Certifiee ; lien SharePoint Cotisations ; liaison EMPNUM vers EMPLOYEURS_ACTIFS
+13,9/22/2026,Creation : base source PRESTATIONS DSA (rapprochement 2025 avec DCG) ; Certifiee ; lien SharePoint Prestations
