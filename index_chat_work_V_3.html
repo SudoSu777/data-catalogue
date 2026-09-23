@@ -655,12 +655,6 @@ textarea { resize: vertical; min-height: 58px; line-height: 1.5; }
           </select>
           <input id="rag-api-key" class="rag-api-key" type="password" placeholder="Collez votre clé API ici" style="display:none" onchange="saveAPIKey()">
           <input id="rag-ollama-url-chat" class="rag-api-key" type="text" placeholder="http://localhost:11434" style="display:none" onchange="saveAPIKey()">
-          <select id="rag-ollama-model" class="rag-api-provider" style="display:none;min-width:120px" onchange="saveAPIKey()">
-            <option value="mixtral">Mixtral 8x7B (recommande)</option>
-            <option value="mistral">Mistral 7B (plus rapide)</option>
-            <option value="gemma3:4b">Gemma 3 4B (leger)</option>
-            <option value="llama3.2">Llama 3.2 8B</option>
-          </select>
           <button id="rag-key-save" class="rag-icon-btn" onclick="saveAPIKey()" title="Enregistrer la clé" style="display:none">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/></svg>
           </button>
@@ -1661,8 +1655,6 @@ function saveAPIKey() {
     const url = document.getElementById('rag-ollama-url-chat').value.trim();
     if (key) keys[prov] = key;
     if (url) keys['ollama_url'] = url;
-    var modelSel = document.getElementById('rag-ollama-model');
-    if (modelSel) keys['ollama_model'] = modelSel.value;
     localStorage.setItem(RAG_KEY_STORE, JSON.stringify(keys));
     const st = document.getElementById('rag-key-status');
     st.textContent = prov === 'ollama' ? 'Adresse du serveur enregistree' : 'Cle enregistree dans ce navigateur';
@@ -1674,7 +1666,7 @@ function saveAPIKey() {
 function loadAPIKey(prov) {
   try {
     const keys = JSON.parse(localStorage.getItem(RAG_KEY_STORE) || '{}');
-    return { key: keys[prov] || '', url: keys['ollama_url'] || 'http://localhost:11434', model: keys['ollama_model'] || 'mixtral' };
+    return { key: keys[prov] || '', url: keys['ollama_url'] || 'http://localhost:11434' };
   } catch(e) { return { key: '', url: 'http://localhost:11434' }; }
 }
 
@@ -1697,20 +1689,12 @@ function onProviderChange() {
     claude: 'Claude Sonnet — console.anthropic.com',
     openai: 'GPT-4o — platform.openai.com',
     mistral: 'Mistral Large — console.mistral.ai',
-    ollama: 'Ollama local — aucune donnee ne sort du reseau'
+    ollama: 'Modele local — aucune donnee ne sort du reseau'
   };
   document.getElementById('rag-model-label').textContent = labels[prov] || '';
   const needsKey = prov === 'claude' || prov === 'openai' || prov === 'mistral';
   keyIn.style.display = needsKey ? 'block' : 'none';
   urlIn.style.display = prov === 'ollama' ? 'block' : 'none';
-  var modelSel = document.getElementById('rag-ollama-model');
-  if (modelSel) {
-    modelSel.style.display = prov === 'ollama' ? 'block' : 'none';
-    if (prov === 'ollama') {
-      var savedModel = loadAPIKey('ollama').model || 'mixtral';
-      modelSel.value = savedModel;
-    }
-  }
   saveBtn.style.display = (needsKey || prov === 'ollama') ? 'flex' : 'none';
 
   const saved = loadAPIKey(prov);
@@ -1724,8 +1708,8 @@ function onProviderChange() {
     const httpsPage = location.protocol === 'https:';
     help.style.display = 'block';
     help.innerHTML = httpsPage
-      ? "<b>Page en HTTPS :</b> le navigateur bloque les appels vers http://localhost (contenu mixte). Ouvrez le catalogue en local ou autorisez le contenu mixte dans Chrome (cadenas > Parametres du site)."
-      : "Demarrez avec <code>$env:OLLAMA_ORIGINS='*'; $env:OLLAMA_NUM_CTX='8192'; ollama serve</code><br>Puis installez le modele choisi : <code>ollama pull mixtral</code> (ou mistral, gemma3:4b, llama3.2)";
+      ? "<b>Page en HTTPS :</b> le navigateur bloque les appels vers http://localhost (contenu mixte). Ouvrez le catalogue en local (fichier ou http://), ou exposez Ollama en HTTPS. Cote serveur, autorisez aussi l'origine : <code>OLLAMA_ORIGINS=*</code> avant <code>ollama serve</code>."
+      : "Demarrez le serveur avec <code>OLLAMA_ORIGINS=* ollama serve</code>, puis <code>ollama pull mistral</code>. Sans cette variable, le navigateur recoit une erreur reseau.";
   } else {
     help.style.display = 'none';
   }
@@ -1922,6 +1906,7 @@ function ragBuildContext(question) {
     "REGLES:",
     "- Reponds UNIQUEMENT en JSON valide, sans markdown.",
     "- Utilise les noms de tables EXACTS du catalogue.",
+    "- Tu peux aussi donner des scripts Python ou R pour permettre de traiter des données sources et avoir la requête de la demande.",
     "- Explique en francais clair quelles bases croiser et pourquoi.",
     "- Si une variable demandee (ex: sexe, commune) n'existe dans aucune table, dis-le explicitement et propose la table la plus proche ou une demande d'enrichissement a la DSI.",
     "- Montants en FCFA. Branches CNPS: PF(601), ATMP(602), RETRAITE(603), AM(604).",
@@ -1987,7 +1972,7 @@ async function callRAGLLM(question, history) {
     try {
       r = await fetch(url + '/api/chat', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: (document.getElementById('rag-ollama-model')||{}).value || stored.model || 'mixtral', stream: false, format: 'json',
+        body: JSON.stringify({ model: 'mistral', stream: false, format: 'json',
           messages: [{ role: 'system', content: sysPrompt }, ...msgs] })
       });
     } catch (netErr) {
